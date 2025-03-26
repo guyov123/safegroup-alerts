@@ -216,7 +216,7 @@ const GroupCard = ({ group }) => {
                 </label>
                 <Input
                   id="email"
-                  placeholder="הזן כתובת דוא\"ל"
+                  placeholder="הזן כתובת דוא״ל"
                   type="email"
                   value={newMemberEmail}
                   onChange={(e) => setNewMemberEmail(e.target.value)}
