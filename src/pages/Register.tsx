@@ -83,21 +83,30 @@ const Register = () => {
   };
 
   const handleGoogleSignIn = async () => {
+    setIsLoading(true);
     try {
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: `${window.location.origin}/login`
+          redirectTo: `${window.location.origin}/login`,
+          queryParams: {
+            access_type: 'offline',
+            prompt: 'consent',
+          }
         }
       });
       
-      if (error) throw error;
+      if (error) {
+        throw error;
+      }
     } catch (error: any) {
+      console.error("Google sign-in error:", error);
       toast({
         variant: "destructive",
         title: "שגיאה בהתחברות",
         description: error.message || "אירעה שגיאה בתהליך ההתחברות עם Google",
       });
+      setIsLoading(false);
     }
   };
 
