@@ -1,15 +1,14 @@
-
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Shield, ShieldCheck, Clock } from "lucide-react";
 import { toast } from "sonner";
+import { cn } from "@/lib/utils";
 
 const Dashboard = () => {
   const [isSafe, setIsSafe] = useState(false);
   
-  // Mock data for group members
   const groupMembers = [
     { id: 1, name: "יעל כהן", status: "safe", time: "12:45", image: "" },
     { id: 2, name: "דני לוי", status: "safe", time: "11:30", image: "" },
@@ -21,7 +20,6 @@ const Dashboard = () => {
     setIsSafe(true);
     toast.success("סימנת את עצמך כבטוח/ה!");
     
-    // Reset status after some time (for demo purposes)
     setTimeout(() => {
       setIsSafe(false);
     }, 10000);
