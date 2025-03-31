@@ -1,60 +1,79 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Bell, Clock, MapPin, Filter, Search, AlertTriangle, Info, Check, ShieldAlert, ShieldCheck } from "lucide-react";
+import { Bell, Clock, MapPin, Filter, Search, AlertTriangle, Info, Check, ShieldAlert, ShieldCheck, Loader2 } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
+
+// Define TypeScript interfaces for our data
+interface AlertUser {
+  name: string;
+  image: string;
+}
+
+interface Alert {
+  id: string;
+  type: "emergency" | "safe" | "reminder";
+  user: AlertUser;
+  group: string;
+  location: string;
+  time: string;
+  date: string;
+  status: "active" | "resolved";
+}
 
 const Alerts = () => {
   const [searchQuery, setSearchQuery] = useState("");
+  const [alerts, setAlerts] = useState<Alert[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   
-  // Mock alerts data
-  const alerts = [
-    { 
-      id: 1, 
-      type: "emergency", 
-      user: { name: "דני לוי", image: "" }, 
-      group: "משפחה", 
-      location: "רחוב הברוש 10, תל אביב", 
-      time: "13:45", 
-      date: "05.06.2023",
-      status: "active" 
-    },
-    { 
-      id: 2, 
-      type: "safe", 
-      user: { name: "יעל כהן", image: "" }, 
-      group: "עבודה", 
-      location: "שדרות רוטשילד 20, תל אביב", 
-      time: "10:22", 
-      date: "05.06.2023",
-      status: "resolved" 
-    },
-    { 
-      id: 3, 
-      type: "reminder", 
-      user: { name: "מיכל רבין", image: "" }, 
-      group: "חברים", 
-      location: "", 
-      time: "09:15", 
-      date: "04.06.2023",
-      status: "active" 
-    },
-    { 
-      id: 4, 
-      type: "emergency", 
-      user: { name: "אורי שמיר", image: "" }, 
-      group: "עבודה", 
-      location: "אלנבי 85, תל אביב", 
-      time: "18:30", 
-      date: "03.06.2023",
-      status: "resolved" 
-    },
-  ];
+  useEffect(() => {
+    const fetchAlerts = async () => {
+      try {
+        setIsLoading(true);
+        
+        // Check if user is authenticated
+        const { data: { user } } = await supabase.auth.getUser();
+        
+        if (!user) {
+          setIsLoading(false);
+          return;
+        }
+        
+        // Fetch groups that belong to the current user
+        const { data: userGroups, error: groupsError } = await supabase
+          .from('groups')
+          .select('id, name')
+          .eq('owner_id', user.id);
+          
+        if (groupsError) {
+          console.error("Error fetching groups:", groupsError);
+          toast.error("שגיאה בטעינת הקבוצות");
+          setIsLoading(false);
+          return;
+        }
+        
+        // If we have groups, we could fetch alerts associated with them
+        // This is where you would normally fetch alerts from your database
+        // For now, we'll just set an empty array since there is no alerts table yet
+        
+        setAlerts([]);
+        setIsLoading(false);
+      } catch (error) {
+        console.error("Error:", error);
+        toast.error("שגיאה בטעינת הנתונים");
+        setIsLoading(false);
+      }
+    };
+    
+    fetchAlerts();
+  }, []);
   
   // Filter alerts by search query
   const filteredAlerts = alerts.filter(alert => 
@@ -95,18 +114,38 @@ const Alerts = () => {
           <TabsTrigger value="resolved">נפתרו</TabsTrigger>
         </TabsList>
         <TabsContent value="all">
-          <AlertsList alerts={filteredAlerts} />
+          {isLoading ? (
+            <LoadingState />
+          ) : (
+            <AlertsList alerts={filteredAlerts} />
+          )}
         </TabsContent>
         <TabsContent value="active">
-          <AlertsList alerts={filteredAlerts.filter(alert => alert.status === "active")} />
+          {isLoading ? (
+            <LoadingState />
+          ) : (
+            <AlertsList alerts={filteredAlerts.filter(alert => alert.status === "active")} />
+          )}
         </TabsContent>
         <TabsContent value="resolved">
-          <AlertsList alerts={filteredAlerts.filter(alert => alert.status === "resolved")} />
+          {isLoading ? (
+            <LoadingState />
+          ) : (
+            <AlertsList alerts={filteredAlerts.filter(alert => alert.status === "resolved")} />
+          )}
         </TabsContent>
       </Tabs>
     </div>
   );
 };
+
+// Loading State Component
+const LoadingState = () => (
+  <div className="flex justify-center items-center p-10">
+    <Loader2 className="h-8 w-8 animate-spin mr-2" />
+    <span>טוען התראות...</span>
+  </div>
+);
 
 // Alert List Component
 const AlertsList = ({ alerts }) => {
