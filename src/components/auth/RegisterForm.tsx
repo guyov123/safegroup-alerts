@@ -1,3 +1,4 @@
+
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -12,7 +13,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 
 const registerSchema = z.object({
   name: z.string().min(2, { message: "שם חייב להכיל לפחות 2 תווים" }),
-  username: z.string().min(3, { message: "שם משתמש חייב להכיל לפחות 3 תווים" }),
+  email: z.string().email({ message: "יש להזין כתובת אימייל תקינה" }),
   password: z.string().min(6, { message: "סיסמה חייבת להכיל לפחות 6 תווים" }),
   confirmPassword: z.string()
 }).refine(data => data.password === data.confirmPassword, {
@@ -35,7 +36,7 @@ const RegisterForm = ({ isLoading, setIsLoading }: RegisterFormProps) => {
     resolver: zodResolver(registerSchema),
     defaultValues: {
       name: "",
-      username: "",
+      email: "",
       password: "",
       confirmPassword: ""
     }
@@ -46,20 +47,15 @@ const RegisterForm = ({ isLoading, setIsLoading }: RegisterFormProps) => {
     
     setIsLoading(true);
     try {
-      // Generate a valid email format that will be accepted by Supabase
-      // Use Gmail domain as it's widely accepted
-      const cleanUsername = data.username.replace(/[^a-zA-Z0-9]/g, "");
-      const emailAddress = `${cleanUsername}@gmail.com`;
-      console.log("Attempting to register with:", emailAddress);
+      console.log("Attempting to register with:", data.email);
       
-      // Direct sign up with properly formatted email
+      // Direct sign up with user-provided email
       const { data: authData, error } = await supabase.auth.signUp({
-        email: emailAddress,
+        email: data.email,
         password: data.password,
         options: {
           data: {
-            full_name: data.name,
-            preferred_username: data.username // Store the original username in user metadata
+            full_name: data.name
           },
           emailRedirectTo: `${window.location.origin}/login`
         }
@@ -75,7 +71,7 @@ const RegisterForm = ({ isLoading, setIsLoading }: RegisterFormProps) => {
       // If the user was created successfully, sign them in immediately
       if (authData.user) {
         const { error: signInError } = await supabase.auth.signInWithPassword({
-          email: emailAddress,
+          email: data.email,
           password: data.password
         });
         
@@ -104,7 +100,7 @@ const RegisterForm = ({ isLoading, setIsLoading }: RegisterFormProps) => {
         toast({
           variant: "destructive",
           title: "שגיאה בהרשמה",
-          description: "משתמש עם שם משתמש זה כבר רשום במערכת",
+          description: "משתמש עם אימייל זה כבר רשום במערכת",
         });
       } else {
         toast({
@@ -141,14 +137,14 @@ const RegisterForm = ({ isLoading, setIsLoading }: RegisterFormProps) => {
           
           <FormField
             control={form.control}
-            name="username"
+            name="email"
             render={({ field }) => (
               <FormItem className="space-y-2">
-                <label htmlFor="username" className="text-sm font-medium">שם משתמש</label>
+                <label htmlFor="email" className="text-sm font-medium">אימייל</label>
                 <div className="relative">
-                  <User className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                  <Mail className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
                   <FormControl>
-                    <Input id="username" placeholder="בחר שם משתמש" className="pl-10 text-right" dir="rtl" {...field} />
+                    <Input id="email" type="email" placeholder="הזן כתובת אימייל" className="pl-10 text-right" dir="rtl" {...field} />
                   </FormControl>
                 </div>
                 <FormMessage className="text-right" />
