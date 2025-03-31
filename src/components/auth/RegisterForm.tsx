@@ -1,4 +1,3 @@
-
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -47,19 +46,20 @@ const RegisterForm = ({ isLoading, setIsLoading }: RegisterFormProps) => {
     
     setIsLoading(true);
     try {
-      // ליצור דוא"ל מלאכותי משם המשתמש על ידי הוספת דומיין
-      const emailAddress = `${data.username}@safegroup.app`;
+      // Create a valid email with proper domain format that will pass validation
+      const cleanUsername = data.username.replace(/[^a-zA-Z0-9]/g, "");
+      const emailAddress = `${cleanUsername}@example.com`;
       console.log("Attempting to register with:", emailAddress);
       
-      // Changed to directly sign up without email verification
+      // Direct sign up with properly formatted email
       const { data: authData, error } = await supabase.auth.signUp({
-        email: emailAddress, // Using username + domain as email for authentication
+        email: emailAddress, // Using username with valid domain as email for authentication
         password: data.password,
         options: {
           data: {
-            full_name: data.name
+            full_name: data.name,
+            preferred_username: data.username // Store the original username in user metadata
           },
-          // Auto-confirm emails - no verification needed
           emailRedirectTo: `${window.location.origin}/login`
         }
       });
@@ -74,7 +74,7 @@ const RegisterForm = ({ isLoading, setIsLoading }: RegisterFormProps) => {
       // If the user was created successfully, sign them in immediately
       if (authData.user) {
         const { error: signInError } = await supabase.auth.signInWithPassword({
-          email: emailAddress, // Using username + domain as email
+          email: emailAddress, // Using the same email format for sign in
           password: data.password
         });
         
