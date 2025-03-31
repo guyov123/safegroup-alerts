@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -14,8 +13,8 @@ import { toast } from "sonner";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 
-// Define types for our data
 interface Group {
   id: string;
   name: string;
@@ -38,7 +37,6 @@ const Groups = () => {
   const [groups, setGroups] = useState<Group[]>([]);
   const [loading, setLoading] = useState(true);
   
-  // Fetch groups on component mount
   useEffect(() => {
     fetchGroups();
   }, []);
@@ -62,7 +60,6 @@ const Groups = () => {
     }
   };
   
-  // Filtered groups based on search query
   const filteredGroups = groups.filter(group => 
     group.name.includes(searchQuery)
   );
@@ -184,7 +181,6 @@ const Groups = () => {
   );
 };
 
-// Group Card Component
 const GroupCard = ({ group, onDelete }: { group: Group, onDelete: () => void }) => {
   const [isAddMemberOpen, setIsAddMemberOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
@@ -192,6 +188,7 @@ const GroupCard = ({ group, onDelete }: { group: Group, onDelete: () => void }) 
   const [newMemberName, setNewMemberName] = useState("");
   const [members, setMembers] = useState<GroupMember[]>([]);
   const [loading, setLoading] = useState(true);
+  const [checkingEmail, setCheckingEmail] = useState(false);
 
   useEffect(() => {
     fetchMembers();
@@ -221,6 +218,45 @@ const GroupCard = ({ group, onDelete }: { group: Group, onDelete: () => void }) 
     if (!newMemberEmail.trim()) return;
     
     try {
+      setCheckingEmail(true);
+      
+      const existingMember = members.find(member => 
+        member.email.toLowerCase() === newMemberEmail.toLowerCase()
+      );
+      
+      if (existingMember) {
+        toast.error('כתובת האימייל כבר קיימת בקבוצה');
+        setCheckingEmail(false);
+        return;
+      }
+      
+      const { data: userData, error: userError } = await supabase.auth.admin.listUsers();
+      
+      if (userError) {
+        console.error("Error checking user:", userError);
+      }
+      
+      let userExists = false;
+      
+      if (userData && userData.users) {
+        userExists = userData.users.some(user => 
+          user.email?.toLowerCase() === newMemberEmail.toLowerCase()
+        );
+      }
+      
+      if (!userExists) {
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(newMemberEmail)) {
+          toast.error('כתובת האימייל אינה תקינה');
+          setCheckingEmail(false);
+          return;
+        }
+        
+        toast.error('המשתמש אינו קיים במערכת');
+        setCheckingEmail(false);
+        return;
+      }
+      
       const { data, error } = await supabase
         .from('group_members')
         .insert([{ 
@@ -247,6 +283,8 @@ const GroupCard = ({ group, onDelete }: { group: Group, onDelete: () => void }) 
     } catch (error) {
       console.error('Error adding member:', error);
       toast.error('שגיאה בהוספת המשתמש לקבוצה');
+    } finally {
+      setCheckingEmail(false);
     }
   };
 
@@ -432,8 +470,18 @@ const GroupCard = ({ group, onDelete }: { group: Group, onDelete: () => void }) 
               <Button variant="outline" onClick={() => setIsAddMemberOpen(false)}>
                 ביטול
               </Button>
-              <Button onClick={handleAddMember} disabled={!newMemberEmail.trim()}>
-                הוסף
+              <Button 
+                onClick={handleAddMember} 
+                disabled={!newMemberEmail.trim() || checkingEmail}
+              >
+                {checkingEmail ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    בודק...
+                  </>
+                ) : (
+                  'הוסף'
+                )}
               </Button>
             </DialogFooter>
           </DialogContent>
