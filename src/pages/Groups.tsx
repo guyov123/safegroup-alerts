@@ -20,6 +20,7 @@ interface Group {
   id: string;
   name: string;
   created_at: string;
+  owner_id: string;
 }
 
 interface GroupMember {
@@ -70,9 +71,19 @@ const Groups = () => {
     if (!newGroupName.trim()) return;
     
     try {
+      const { data: userData } = await supabase.auth.getUser();
+      
+      if (!userData.user) {
+        toast.error('יש להתחבר תחילה');
+        return;
+      }
+      
       const { data, error } = await supabase
         .from('groups')
-        .insert([{ name: newGroupName }])
+        .insert([{ 
+          name: newGroupName,
+          owner_id: userData.user.id
+        }])
         .select()
         .single();
       
