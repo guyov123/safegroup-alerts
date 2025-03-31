@@ -23,15 +23,13 @@ export const supabase = createClient<Database>(
       autoRefreshToken: true,
       persistSession: true,
       storage: localStorage,
-      // The redirectTo property should be set using flowType
       flowType: 'pkce',
-      detectSessionInUrl: true
+      detectSessionInUrl: true,
+      // Set the redirect URL based on the current origin
+      redirectTo: getRedirectTo()
     }
   }
 );
 
 // Set the redirect URL for authentication operations
-const redirectUrl = getRedirectTo();
-// You can use the redirect URL in auth operations like this:
-// supabase.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: redirectUrl } });
-// supabase.auth.signUp({ email, password, options: { emailRedirectTo: redirectUrl } });
+export const redirectUrl = getRedirectTo();

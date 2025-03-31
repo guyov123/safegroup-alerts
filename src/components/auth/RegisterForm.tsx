@@ -1,10 +1,9 @@
-
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { CardContent } from "@/components/ui/card";
 import { Mail, User, Lock } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase, redirectUrl } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Form, FormField, FormItem, FormControl, FormMessage } from "@/components/ui/form";
 import { useForm } from "react-hook-form";
@@ -49,7 +48,7 @@ const RegisterForm = ({ isLoading, setIsLoading }: RegisterFormProps) => {
     try {
       console.log("Attempting to register with:", data.email);
       
-      // Direct sign up with user-provided email
+      // Direct sign up with user-provided email using redirectUrl
       const { data: authData, error } = await supabase.auth.signUp({
         email: data.email,
         password: data.password,
@@ -57,7 +56,7 @@ const RegisterForm = ({ isLoading, setIsLoading }: RegisterFormProps) => {
           data: {
             full_name: data.name
           },
-          emailRedirectTo: `${window.location.origin}/login`
+          emailRedirectTo: redirectUrl
         }
       });
 
@@ -68,30 +67,14 @@ const RegisterForm = ({ isLoading, setIsLoading }: RegisterFormProps) => {
 
       console.log("Registration successful:", authData);
       
-      // If the user was created successfully, sign them in immediately
-      if (authData.user) {
-        const { error: signInError } = await supabase.auth.signInWithPassword({
-          email: data.email,
-          password: data.password
-        });
-        
-        if (signInError) {
-          console.error("Auto-login error:", signInError);
-          // If auto-login fails, still consider signup a success and redirect to login
-          toast({
-            title: "נרשמת בהצלחה!",
-            description: "אנא התחבר עם הפרטים שיצרת",
-          });
-          navigate("/login");
-        } else {
-          // Successfully signed in after registration
-          toast({
-            title: "נרשמת והתחברת בהצלחה!",
-            description: "ברוכים הבאים למערכת",
-          });
-          navigate("/");
-        }
-      }
+      toast({
+        title: "נרשמת בהצלחה!",
+        description: "נשלח לך אימייל לאימות החשבון. אנא אשר אותו כדי להמשיך",
+      });
+      
+      // After successful registration, redirect to login page
+      navigate("/login");
+      
     } catch (error: any) {
       console.error("Registration error caught:", error);
       

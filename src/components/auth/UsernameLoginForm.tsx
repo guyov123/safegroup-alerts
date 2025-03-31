@@ -6,6 +6,7 @@ import { Mail, Lock } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
+import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 
 interface UsernameLoginFormProps {
   isLoading: boolean;
@@ -16,12 +17,14 @@ const UsernameLoginForm = ({ isLoading, setIsLoading }: UsernameLoginFormProps) 
   const navigate = useNavigate();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [emailConfirmError, setEmailConfirmError] = useState(false);
 
   const handleUsernameLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     if (isLoading) return; // Prevent multiple submissions
     
     setIsLoading(true);
+    setEmailConfirmError(false);
     
     try {
       console.log("Attempting to log in with email:", email);
@@ -33,8 +36,17 @@ const UsernameLoginForm = ({ isLoading, setIsLoading }: UsernameLoginFormProps) 
       if (error) {
         console.error("Login error:", error);
         
+        // Check for email not confirmed error
+        if (error.message.includes("Email not confirmed")) {
+          setEmailConfirmError(true);
+          toast({
+            title: "התחברות נכשלה",
+            description: "האימייל שלך לא אומת. אנא בדוק את תיבת הדואר שלך לקבלת קישור האימות",
+            variant: "destructive"
+          });
+        }
         // Check for specific error messages
-        if (error.message.includes("Invalid login credentials")) {
+        else if (error.message.includes("Invalid login credentials")) {
           toast({
             title: "התחברות נכשלה",
             description: "אימייל או סיסמה שגויים. נסה שוב.",
@@ -67,8 +79,63 @@ const UsernameLoginForm = ({ isLoading, setIsLoading }: UsernameLoginFormProps) 
     }
   };
 
+  // Send verification email again
+  const resendVerificationEmail = async () => {
+    if (isLoading || !email) return;
+    
+    setIsLoading(true);
+    try {
+      const { error } = await supabase.auth.resend({
+        type: 'signup',
+        email,
+        options: {
+          emailRedirectTo: window.location.origin
+        }
+      });
+      
+      if (error) {
+        toast({
+          title: "שגיאה",
+          description: "אירעה שגיאה בשליחת האימייל מחדש: " + error.message,
+          variant: "destructive"
+        });
+      } else {
+        toast({
+          title: "אימייל אימות נשלח",
+          description: "אנא בדוק את תיבת הדואר שלך",
+        });
+      }
+    } catch (error: any) {
+      console.error("Error resending verification email:", error);
+      toast({
+        title: "שגיאה",
+        description: "אירעה שגיאה בשליחת האימייל מחדש",
+        variant: "destructive"
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   return (
     <form onSubmit={handleUsernameLogin} className="space-y-4">
+      {emailConfirmError && (
+        <Alert variant="destructive" className="mb-4">
+          <AlertTitle>התחברות נכשלה</AlertTitle>
+          <AlertDescription>
+            האימייל שלך לא אומת. אנא בדוק את תיבת הדואר שלך או
+            <Button 
+              variant="link" 
+              className="px-1 underline" 
+              onClick={resendVerificationEmail}
+              disabled={isLoading}
+            >
+              שלח את האימייל מחדש
+            </Button>
+          </AlertDescription>
+        </Alert>
+      )}
+      
       <div className="space-y-2">
         <label htmlFor="email" className="text-sm font-medium">אימייל</label>
         <div className="relative">
