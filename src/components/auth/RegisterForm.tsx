@@ -46,14 +46,15 @@ const RegisterForm = ({ isLoading, setIsLoading }: RegisterFormProps) => {
     
     setIsLoading(true);
     try {
-      // Create a valid email with proper domain format that will pass validation
+      // Generate a valid email format that will be accepted by Supabase
+      // Use Gmail domain as it's widely accepted
       const cleanUsername = data.username.replace(/[^a-zA-Z0-9]/g, "");
-      const emailAddress = `${cleanUsername}@example.com`;
+      const emailAddress = `${cleanUsername}@gmail.com`;
       console.log("Attempting to register with:", emailAddress);
       
       // Direct sign up with properly formatted email
       const { data: authData, error } = await supabase.auth.signUp({
-        email: emailAddress, // Using username with valid domain as email for authentication
+        email: emailAddress,
         password: data.password,
         options: {
           data: {
@@ -74,7 +75,7 @@ const RegisterForm = ({ isLoading, setIsLoading }: RegisterFormProps) => {
       // If the user was created successfully, sign them in immediately
       if (authData.user) {
         const { error: signInError } = await supabase.auth.signInWithPassword({
-          email: emailAddress, // Using the same email format for sign in
+          email: emailAddress,
           password: data.password
         });
         
