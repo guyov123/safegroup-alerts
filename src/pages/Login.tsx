@@ -5,18 +5,18 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Mail, Phone, Lock, AlertCircle } from "lucide-react";
+import { User, Phone, Lock, AlertCircle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
 
 const Login = () => {
   const navigate = useNavigate();
-  const [isEmailLogin, setIsEmailLogin] = useState(true);
+  const [isUsernameLogin, setIsUsernameLogin] = useState(true);
   const [isLoading, setIsLoading] = useState(false);
   
-  // Email login states
-  const [email, setEmail] = useState("");
+  // Username login states
+  const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   
   // Phone login states
@@ -36,16 +36,17 @@ const Login = () => {
     checkSession();
   }, [navigate]);
 
-  const handleEmailLogin = async (e: React.FormEvent) => {
+  const handleUsernameLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     if (isLoading) return; // Prevent multiple submissions
     
     setIsLoading(true);
     
     try {
-      console.log("Attempting to log in with:", email);
+      // Since Supabase doesn't support username-only login, we'll use the username as email
+      console.log("Attempting to log in with username:", username);
       const { data, error } = await supabase.auth.signInWithPassword({
-        email,
+        email: username,
         password
       });
       
@@ -56,7 +57,7 @@ const Login = () => {
         if (error.message.includes("Invalid login credentials")) {
           toast({
             title: "התחברות נכשלה",
-            description: "דוא\"ל או סיסמה שגויים. נסה שוב.",
+            description: "שם משתמש או סיסמה שגויים. נסה שוב.",
             variant: "destructive"
           });
         } else {
@@ -202,18 +203,18 @@ const Login = () => {
         <CardContent className="space-y-4">
           <div className="flex gap-2 mb-6">
             <Button 
-              variant={isEmailLogin ? "default" : "outline"} 
+              variant={isUsernameLogin ? "default" : "outline"} 
               className="w-1/2" 
-              onClick={() => setIsEmailLogin(true)}
+              onClick={() => setIsUsernameLogin(true)}
               disabled={isLoading}
             >
-              <Mail className="mr-2 h-4 w-4" />
-              דוא"ל
+              <User className="mr-2 h-4 w-4" />
+              שם משתמש
             </Button>
             <Button 
-              variant={!isEmailLogin ? "default" : "outline"} 
+              variant={!isUsernameLogin ? "default" : "outline"} 
               className="w-1/2" 
-              onClick={() => setIsEmailLogin(false)}
+              onClick={() => setIsUsernameLogin(false)}
               disabled={isLoading}
             >
               <Phone className="mr-2 h-4 w-4" />
@@ -221,18 +222,18 @@ const Login = () => {
             </Button>
           </div>
 
-          {isEmailLogin ? (
-            <form onSubmit={handleEmailLogin} className="space-y-4">
+          {isUsernameLogin ? (
+            <form onSubmit={handleUsernameLogin} className="space-y-4">
               <div className="space-y-2">
-                <label htmlFor="email" className="text-sm font-medium">דוא"ל</label>
+                <label htmlFor="username" className="text-sm font-medium">שם משתמש</label>
                 <div className="relative">
-                  <Mail className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                  <User className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
                   <Input 
-                    id="email" 
-                    type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    placeholder="הזן את הדוא״ל שלך" 
+                    id="username" 
+                    type="text"
+                    value={username}
+                    onChange={(e) => setUsername(e.target.value)}
+                    placeholder="הזן את שם המשתמש שלך" 
                     className="pl-10 text-right" 
                     dir="rtl" 
                     required

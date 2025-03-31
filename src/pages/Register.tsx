@@ -14,7 +14,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 
 const registerSchema = z.object({
   name: z.string().min(2, { message: "שם חייב להכיל לפחות 2 תווים" }),
-  email: z.string().email({ message: "כתובת דוא״ל לא תקינה" }),
+  username: z.string().min(3, { message: "שם משתמש חייב להכיל לפחות 3 תווים" }),
   password: z.string().min(6, { message: "סיסמה חייבת להכיל לפחות 6 תווים" }),
   confirmPassword: z.string()
 }).refine(data => data.password === data.confirmPassword, {
@@ -33,7 +33,7 @@ const Register = () => {
     resolver: zodResolver(registerSchema),
     defaultValues: {
       name: "",
-      email: "",
+      username: "",
       password: "",
       confirmPassword: ""
     }
@@ -44,11 +44,11 @@ const Register = () => {
     
     setIsLoading(true);
     try {
-      console.log("Attempting to register with:", data.email);
+      console.log("Attempting to register with:", data.username);
       
       // Changed to directly sign up without email verification
       const { data: authData, error } = await supabase.auth.signUp({
-        email: data.email,
+        email: data.username, // Using username as email for authentication
         password: data.password,
         options: {
           data: {
@@ -69,7 +69,7 @@ const Register = () => {
       // If the user was created successfully, sign them in immediately
       if (authData.user) {
         const { error: signInError } = await supabase.auth.signInWithPassword({
-          email: data.email,
+          email: data.username, // Using username as email
           password: data.password
         });
         
@@ -98,7 +98,7 @@ const Register = () => {
         toast({
           variant: "destructive",
           title: "שגיאה בהרשמה",
-          description: "משתמש עם דוא״ל זה כבר רשום במערכת",
+          description: "משתמש עם שם משתמש זה כבר רשום במערכת",
         });
       } else {
         toast({
@@ -142,14 +142,14 @@ const Register = () => {
               
               <FormField
                 control={form.control}
-                name="email"
+                name="username"
                 render={({ field }) => (
                   <FormItem className="space-y-2">
-                    <label htmlFor="email" className="text-sm font-medium">דוא"ל</label>
+                    <label htmlFor="username" className="text-sm font-medium">שם משתמש</label>
                     <div className="relative">
-                      <Mail className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                      <User className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
                       <FormControl>
-                        <Input id="email" placeholder="הזן את הדוא״ל שלך" className="pl-10 text-right" dir="rtl" {...field} />
+                        <Input id="username" placeholder="בחר שם משתמש" className="pl-10 text-right" dir="rtl" {...field} />
                       </FormControl>
                     </div>
                     <FormMessage className="text-right" />
