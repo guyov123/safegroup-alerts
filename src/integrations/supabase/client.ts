@@ -24,9 +24,7 @@ export const supabase = createClient<Database>(
       persistSession: true,
       storage: localStorage,
       flowType: 'pkce',
-      detectSessionInUrl: true,
-      // Set the redirect URL based on the current origin
-      redirectTo: getRedirectTo()
+      detectSessionInUrl: true
     }
   }
 );
