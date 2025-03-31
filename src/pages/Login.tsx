@@ -1,10 +1,11 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { Mail, Phone, Lock } from "lucide-react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Mail, Phone, Lock, AlertCircle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
@@ -13,6 +14,7 @@ const Login = () => {
   const navigate = useNavigate();
   const [isEmailLogin, setIsEmailLogin] = useState(true);
   const [isLoading, setIsLoading] = useState(false);
+  const [emailVerificationNeeded, setEmailVerificationNeeded] = useState(false);
   
   // Email login states
   const [email, setEmail] = useState("");
@@ -23,33 +25,102 @@ const Login = () => {
   const [otp, setOtp] = useState("");
   const [verificationSent, setVerificationSent] = useState(false);
 
+  // Check if user is already logged in
+  useEffect(() => {
+    const checkSession = async () => {
+      const { data } = await supabase.auth.getSession();
+      if (data.session) {
+        navigate("/");
+      }
+    };
+    
+    checkSession();
+  }, [navigate]);
+
   const handleEmailLogin = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isLoading) return; // Prevent multiple submissions
+    
     setIsLoading(true);
+    setEmailVerificationNeeded(false);
     
     try {
+      console.log("Attempting to log in with:", email);
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password
       });
       
       if (error) {
-        toast({
-          title: "התחברות נכשלה",
-          description: error.message,
-          variant: "destructive"
-        });
+        console.error("Login error:", error);
+        
+        // Check for specific error messages
+        if (error.message.includes("Email not confirmed")) {
+          setEmailVerificationNeeded(true);
+          toast({
+            title: "אימות דוא\"ל נדרש",
+            description: "נא לאמת את הדוא\"ל שלך לפני ההתחברות. בדוק את תיבת הדואר הנכנס שלך.",
+            variant: "destructive"
+          });
+        } else if (error.message.includes("Invalid login credentials")) {
+          toast({
+            title: "התחברות נכשלה",
+            description: "דוא\"ל או סיסמה שגויים. נסה שוב.",
+            variant: "destructive"
+          });
+        } else {
+          toast({
+            title: "התחברות נכשלה",
+            description: error.message,
+            variant: "destructive"
+          });
+        }
       } else {
+        console.log("Login successful:", data);
         toast({
           title: "התחברות הצליחה",
           description: "ברוכים הבאים למערכת",
         });
         navigate("/");
       }
-    } catch (error) {
+    } catch (error: any) {
+      console.error("Login error caught:", error);
       toast({
         title: "שגיאה",
         description: "אירעה שגיאה בעת ההתחברות. נסה שוב מאוחר יותר.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const resendVerificationEmail = async () => {
+    if (!email) return;
+    
+    setIsLoading(true);
+    try {
+      const { error } = await supabase.auth.resend({
+        type: 'signup',
+        email: email
+      });
+      
+      if (error) {
+        toast({
+          title: "שליחה נכשלה",
+          description: error.message,
+          variant: "destructive"
+        });
+      } else {
+        toast({
+          title: "דוא\"ל אימות נשלח",
+          description: "בדוק את תיבת הדואר הנכנס שלך",
+        });
+      }
+    } catch (error) {
+      toast({
+        title: "שגיאה",
+        description: "אירעה שגיאה בעת שליחת דוא\"ל האימות",
         variant: "destructive"
       });
     } finally {
@@ -191,6 +262,24 @@ const Login = () => {
               טלפון
             </Button>
           </div>
+
+          {emailVerificationNeeded && (
+            <Alert variant="destructive" className="mb-4">
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription>
+                יש לאמת את הדוא"ל שלך לפני ההתחברות.
+                <Button 
+                  variant="link" 
+                  className="p-0 h-auto text-sm w-full text-left underline"
+                  onClick={resendVerificationEmail}
+                  disabled={isLoading}
+                  type="button"
+                >
+                  שלח לי דוא"ל אימות שוב
+                </Button>
+              </AlertDescription>
+            </Alert>
+          )}
 
           {isEmailLogin ? (
             <form onSubmit={handleEmailLogin} className="space-y-4">
