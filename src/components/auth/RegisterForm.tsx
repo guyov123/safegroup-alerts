@@ -47,11 +47,13 @@ const RegisterForm = ({ isLoading, setIsLoading }: RegisterFormProps) => {
     
     setIsLoading(true);
     try {
-      console.log("Attempting to register with:", data.username);
+      // ליצור דוא"ל מלאכותי משם המשתמש על ידי הוספת דומיין
+      const emailAddress = `${data.username}@safegroup.app`;
+      console.log("Attempting to register with:", emailAddress);
       
       // Changed to directly sign up without email verification
       const { data: authData, error } = await supabase.auth.signUp({
-        email: data.username, // Using username as email for authentication
+        email: emailAddress, // Using username + domain as email for authentication
         password: data.password,
         options: {
           data: {
@@ -72,7 +74,7 @@ const RegisterForm = ({ isLoading, setIsLoading }: RegisterFormProps) => {
       // If the user was created successfully, sign them in immediately
       if (authData.user) {
         const { error: signInError } = await supabase.auth.signInWithPassword({
-          email: data.username, // Using username as email
+          email: emailAddress, // Using username + domain as email
           password: data.password
         });
         
