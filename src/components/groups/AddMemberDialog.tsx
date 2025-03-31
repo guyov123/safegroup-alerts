@@ -38,25 +38,15 @@ export const AddMemberDialog = ({ groupId, groupName, members, onMemberAdded }: 
         return;
       }
       
-      // Check if user exists in the system
-      // We need to verify the user exists without using the 'profiles' table
-      // since it's not defined in our Supabase schema
-      const { data: authUserData, error: authUserError } = await supabase.auth.admin.listUsers({
-        page: 1,
-        perPage: 1,
-        filter: {
-          email: newMemberEmail
-        }
-      }).catch(() => {
-        // Fallback for when admin API is not available
-        // This will allow any email to be added (we'll just check it's valid)
-        return { data: { users: [{ email: newMemberEmail }] }, error: null };
-      });
+      // Since we can't use Supabase admin API directly from the client,
+      // we'll skip the strict user validation and just check for valid email format
+      // This is a simplified approach - in a production app, you might want to validate
+      // via a server function or API endpoint
       
-      const userExists = authUserData?.users?.some(user => user.email === newMemberEmail);
+      const isValidEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(newMemberEmail);
       
-      if (!userExists) {
-        toast.error('משתמש עם כתובת אימייל זו אינו קיים במערכת');
+      if (!isValidEmail) {
+        toast.error('כתובת האימייל אינה תקינה');
         setCheckingEmail(false);
         return;
       }
