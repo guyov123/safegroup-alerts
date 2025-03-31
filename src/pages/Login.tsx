@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Mail, Phone, Lock, AlertCircle } from "lucide-react";
+import { Mail, Phone, Lock, AlertCircle, MailCheck } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
@@ -42,7 +42,6 @@ const Login = () => {
     if (isLoading) return; // Prevent multiple submissions
     
     setIsLoading(true);
-    setEmailVerificationNeeded(false);
     
     try {
       console.log("Attempting to log in with:", email);
@@ -262,6 +261,16 @@ const Login = () => {
               טלפון
             </Button>
           </div>
+
+          {isEmailLogin && (
+            <Alert variant="default" className="mb-4 bg-blue-50 border-blue-200">
+              <MailCheck className="h-4 w-4 text-blue-500" />
+              <AlertDescription className="text-blue-700">
+                שים לב: לאחר הרשמה יש לאמת את כתובת הדוא"ל שלך על ידי לחיצה על הקישור שנשלח אליך.
+                אם לא קיבלת את הדוא"ל, תוכל לבקש לשלוח אותו שוב.
+              </AlertDescription>
+            </Alert>
+          )}
 
           {emailVerificationNeeded && (
             <Alert variant="destructive" className="mb-4">
