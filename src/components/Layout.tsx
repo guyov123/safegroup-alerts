@@ -1,14 +1,66 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Outlet, NavLink } from "react-router-dom";
-import { Home, Users, Bell, Map, Menu, X } from "lucide-react";
+import { Home, Users, Bell, Map, Menu } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+import { supabase } from "@/integrations/supabase/client";
 
 const Layout = () => {
   const [open, setOpen] = useState(false);
+  const [user, setUser] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  
+  useEffect(() => {
+    const fetchUserData = async () => {
+      try {
+        setLoading(true);
+        
+        // Get the current authenticated user
+        const { data: { user: authUser } } = await supabase.auth.getUser();
+        
+        if (authUser) {
+          // Get user metadata
+          const fullName = authUser.user_metadata?.full_name || '';
+          const email = authUser.email || '';
+          
+          setUser({
+            fullName: fullName,
+            email: email
+          });
+        }
+      } catch (error) {
+        console.error("Error fetching user data:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    fetchUserData();
+    
+    // Listen for auth state changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (event, session) => {
+        if (session && session.user) {
+          const fullName = session.user.user_metadata?.full_name || '';
+          const email = session.user.email || '';
+          
+          setUser({
+            fullName: fullName,
+            email: email
+          });
+        } else {
+          setUser(null);
+        }
+      }
+    );
+    
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, []);
   
   const links = [
     { to: "/", label: "ראשי", icon: Home },
@@ -16,6 +68,17 @@ const Layout = () => {
     { to: "/alerts", label: "התראות", icon: Bell },
     { to: "/map", label: "מפה", icon: Map },
   ];
+
+  // Generate avatar fallback from name
+  const getAvatarFallback = () => {
+    if (!user || !user.fullName) return "U";
+    
+    const nameParts = user.fullName.split(' ');
+    if (nameParts.length >= 2) {
+      return `${nameParts[0][0]}${nameParts[1][0]}`.toUpperCase();
+    }
+    return user.fullName[0].toUpperCase();
+  };
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -34,12 +97,12 @@ const Layout = () => {
                 <div className="grid gap-2 px-2 py-4">
                   <div className="flex items-center gap-2 p-2">
                     <Avatar>
-                      <AvatarImage src="" alt="User" />
-                      <AvatarFallback>IG</AvatarFallback>
+                      <AvatarImage src="" alt={user?.fullName || 'User'} />
+                      <AvatarFallback>{loading ? '...' : getAvatarFallback()}</AvatarFallback>
                     </Avatar>
                     <div className="grid gap-0.5">
-                      <h2 className="text-base font-medium">ישראל ישראלי</h2>
-                      <p className="text-xs text-muted-foreground">israel@example.com</p>
+                      <h2 className="text-base font-medium">{loading ? 'טוען...' : user?.fullName}</h2>
+                      <p className="text-xs text-muted-foreground">{loading ? '' : user?.email}</p>
                     </div>
                   </div>
                   <div className="border-t my-2" />
@@ -67,8 +130,8 @@ const Layout = () => {
           </div>
           <div className="font-medium text-lg">SafeGroup</div>
           <Avatar className="h-8 w-8">
-            <AvatarImage src="" alt="User" />
-            <AvatarFallback>IG</AvatarFallback>
+            <AvatarImage src="" alt={user?.fullName || 'User'} />
+            <AvatarFallback>{loading ? '...' : getAvatarFallback()}</AvatarFallback>
           </Avatar>
         </div>
       </header>
@@ -101,12 +164,12 @@ const Layout = () => {
           <div className="border-t border-t-border p-4">
             <div className="flex items-center gap-2">
               <Avatar>
-                <AvatarImage src="" alt="User" />
-                <AvatarFallback>IG</AvatarFallback>
+                <AvatarImage src="" alt={user?.fullName || 'User'} />
+                <AvatarFallback>{loading ? '...' : getAvatarFallback()}</AvatarFallback>
               </Avatar>
               <div>
-                <div className="font-medium">ישראל ישראלי</div>
-                <div className="text-xs text-muted-foreground">israel@example.com</div>
+                <div className="font-medium">{loading ? 'טוען...' : user?.fullName}</div>
+                <div className="text-xs text-muted-foreground">{loading ? '' : user?.email}</div>
               </div>
             </div>
           </div>
