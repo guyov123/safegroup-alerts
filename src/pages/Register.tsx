@@ -40,8 +40,11 @@ const Register = () => {
   });
 
   const onSubmit = async (data: RegisterFormValues) => {
+    if (isLoading) return; // Prevent multiple submissions
+    
     setIsLoading(true);
     try {
+      console.log("Attempting to register with:", data.email);
       const { data: authData, error } = await supabase.auth.signUp({
         email: data.email,
         password: data.password,
@@ -53,16 +56,24 @@ const Register = () => {
       });
 
       if (error) {
+        console.error("Registration error:", error);
         throw error;
       }
 
+      console.log("Registration successful:", authData);
       toast({
         title: "נרשמת בהצלחה!",
         description: "ברוך הבא ל-SafeGroup",
       });
 
-      navigate("/login");
+      // Give some time for the toast to show before navigating
+      setTimeout(() => {
+        navigate("/login");
+      }, 1000);
+      
     } catch (error: any) {
+      console.error("Registration error caught:", error);
+      
       // Handle known error types
       if (error.message.includes("already registered")) {
         toast({
@@ -161,7 +172,11 @@ const Register = () => {
                 )}
               />
 
-              <Button className="w-full mt-6" type="submit" disabled={isLoading}>
+              <Button 
+                className="w-full mt-6" 
+                type="submit" 
+                disabled={isLoading}
+              >
                 {isLoading ? "מבצע רישום..." : "הירשם"}
               </Button>
             </CardContent>
