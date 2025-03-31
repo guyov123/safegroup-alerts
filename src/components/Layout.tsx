@@ -1,17 +1,19 @@
 
 import { useState, useEffect } from "react";
-import { Outlet, NavLink } from "react-router-dom";
-import { Home, Users, Bell, Map, Menu } from "lucide-react";
+import { Outlet, NavLink, useNavigate } from "react-router-dom";
+import { Home, Users, Bell, Map, Menu, LogOut } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 
 const Layout = () => {
   const [open, setOpen] = useState(false);
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const navigate = useNavigate();
   
   useEffect(() => {
     const fetchUserData = async () => {
@@ -53,6 +55,7 @@ const Layout = () => {
           });
         } else {
           setUser(null);
+          navigate("/login");
         }
       }
     );
@@ -60,7 +63,21 @@ const Layout = () => {
     return () => {
       subscription.unsubscribe();
     };
-  }, []);
+  }, [navigate]);
+  
+  const handleLogout = async () => {
+    try {
+      const { error } = await supabase.auth.signOut();
+      if (error) {
+        throw error;
+      }
+      toast.success("התנתקת בהצלחה");
+      navigate("/login");
+    } catch (error) {
+      console.error("Error logging out:", error);
+      toast.error("שגיאה בהתנתקות");
+    }
+  };
   
   const links = [
     { to: "/", label: "ראשי", icon: Home },
@@ -124,6 +141,14 @@ const Layout = () => {
                       </NavLink>
                     ))}
                   </nav>
+                  <Button 
+                    variant="outline" 
+                    className="mt-2 w-full justify-start text-red-500 hover:text-red-600 hover:bg-red-50"
+                    onClick={handleLogout}
+                  >
+                    <LogOut className="mr-2 h-4 w-4" />
+                    התנתק
+                  </Button>
                 </div>
               </SheetContent>
             </Sheet>
@@ -172,6 +197,14 @@ const Layout = () => {
                 <div className="text-xs text-muted-foreground">{loading ? '' : user?.email}</div>
               </div>
             </div>
+            <Button 
+              variant="outline" 
+              className="mt-4 w-full justify-start text-red-500 hover:text-red-600 hover:bg-red-50"
+              onClick={handleLogout}
+            >
+              <LogOut className="ml-2 h-4 w-4" />
+              התנתק
+            </Button>
           </div>
         </div>
       </div>
