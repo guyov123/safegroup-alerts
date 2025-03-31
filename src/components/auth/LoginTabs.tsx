@@ -1,6 +1,6 @@
 
 import { Button } from "@/components/ui/button";
-import { User, Phone } from "lucide-react";
+import { Mail, Phone } from "lucide-react";
 
 interface LoginTabsProps {
   isUsernameLogin: boolean;
@@ -17,8 +17,8 @@ const LoginTabs = ({ isUsernameLogin, setIsUsernameLogin, isLoading }: LoginTabs
         onClick={() => setIsUsernameLogin(true)}
         disabled={isLoading}
       >
-        <User className="mr-2 h-4 w-4" />
-        שם משתמש
+        <Mail className="mr-2 h-4 w-4" />
+        אימייל
       </Button>
       <Button 
         variant={!isUsernameLogin ? "default" : "outline"} 

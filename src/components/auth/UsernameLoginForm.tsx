@@ -2,7 +2,7 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { User, Lock } from "lucide-react";
+import { Mail, Lock } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
@@ -14,7 +14,7 @@ interface UsernameLoginFormProps {
 
 const UsernameLoginForm = ({ isLoading, setIsLoading }: UsernameLoginFormProps) => {
   const navigate = useNavigate();
-  const [username, setUsername] = useState("");
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
 
   const handleUsernameLogin = async (e: React.FormEvent) => {
@@ -24,10 +24,9 @@ const UsernameLoginForm = ({ isLoading, setIsLoading }: UsernameLoginFormProps) 
     setIsLoading(true);
     
     try {
-      // Since Supabase doesn't support username-only login, we'll use the username as email
-      console.log("Attempting to log in with username:", username);
+      console.log("Attempting to log in with email:", email);
       const { data, error } = await supabase.auth.signInWithPassword({
-        email: username,
+        email: email,
         password
       });
       
@@ -38,7 +37,7 @@ const UsernameLoginForm = ({ isLoading, setIsLoading }: UsernameLoginFormProps) 
         if (error.message.includes("Invalid login credentials")) {
           toast({
             title: "התחברות נכשלה",
-            description: "שם משתמש או סיסמה שגויים. נסה שוב.",
+            description: "אימייל או סיסמה שגויים. נסה שוב.",
             variant: "destructive"
           });
         } else {
@@ -71,15 +70,15 @@ const UsernameLoginForm = ({ isLoading, setIsLoading }: UsernameLoginFormProps) 
   return (
     <form onSubmit={handleUsernameLogin} className="space-y-4">
       <div className="space-y-2">
-        <label htmlFor="username" className="text-sm font-medium">שם משתמש</label>
+        <label htmlFor="email" className="text-sm font-medium">אימייל</label>
         <div className="relative">
-          <User className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+          <Mail className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
           <Input 
-            id="username" 
-            type="text"
-            value={username}
-            onChange={(e) => setUsername(e.target.value)}
-            placeholder="הזן את שם המשתמש שלך" 
+            id="email" 
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            placeholder="הזן את האימייל שלך" 
             className="pl-10 text-right" 
             dir="rtl" 
             required
