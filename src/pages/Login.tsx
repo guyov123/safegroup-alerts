@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Mail, Phone, Lock, AlertCircle, MailCheck } from "lucide-react";
+import { Mail, Phone, Lock, AlertCircle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
@@ -14,7 +14,6 @@ const Login = () => {
   const navigate = useNavigate();
   const [isEmailLogin, setIsEmailLogin] = useState(true);
   const [isLoading, setIsLoading] = useState(false);
-  const [emailVerificationNeeded, setEmailVerificationNeeded] = useState(false);
   
   // Email login states
   const [email, setEmail] = useState("");
@@ -54,14 +53,7 @@ const Login = () => {
         console.error("Login error:", error);
         
         // Check for specific error messages
-        if (error.message.includes("Email not confirmed")) {
-          setEmailVerificationNeeded(true);
-          toast({
-            title: "אימות דוא\"ל נדרש",
-            description: "נא לאמת את הדוא\"ל שלך לפני ההתחברות. בדוק את תיבת הדואר הנכנס שלך.",
-            variant: "destructive"
-          });
-        } else if (error.message.includes("Invalid login credentials")) {
+        if (error.message.includes("Invalid login credentials")) {
           toast({
             title: "התחברות נכשלה",
             description: "דוא\"ל או סיסמה שגויים. נסה שוב.",
@@ -87,39 +79,6 @@ const Login = () => {
       toast({
         title: "שגיאה",
         description: "אירעה שגיאה בעת ההתחברות. נסה שוב מאוחר יותר.",
-        variant: "destructive"
-      });
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const resendVerificationEmail = async () => {
-    if (!email) return;
-    
-    setIsLoading(true);
-    try {
-      const { error } = await supabase.auth.resend({
-        type: 'signup',
-        email: email
-      });
-      
-      if (error) {
-        toast({
-          title: "שליחה נכשלה",
-          description: error.message,
-          variant: "destructive"
-        });
-      } else {
-        toast({
-          title: "דוא\"ל אימות נשלח",
-          description: "בדוק את תיבת הדואר הנכנס שלך",
-        });
-      }
-    } catch (error) {
-      toast({
-        title: "שגיאה",
-        description: "אירעה שגיאה בעת שליחת דוא\"ל האימות",
         variant: "destructive"
       });
     } finally {
@@ -261,34 +220,6 @@ const Login = () => {
               טלפון
             </Button>
           </div>
-
-          {isEmailLogin && (
-            <Alert variant="default" className="mb-4 bg-blue-50 border-blue-200">
-              <MailCheck className="h-4 w-4 text-blue-500" />
-              <AlertDescription className="text-blue-700">
-                שים לב: לאחר הרשמה יש לאמת את כתובת הדוא"ל שלך על ידי לחיצה על הקישור שנשלח אליך.
-                אם לא קיבלת את הדוא"ל, תוכל לבקש לשלוח אותו שוב.
-              </AlertDescription>
-            </Alert>
-          )}
-
-          {emailVerificationNeeded && (
-            <Alert variant="destructive" className="mb-4">
-              <AlertCircle className="h-4 w-4" />
-              <AlertDescription>
-                יש לאמת את הדוא"ל שלך לפני ההתחברות.
-                <Button 
-                  variant="link" 
-                  className="p-0 h-auto text-sm w-full text-left underline"
-                  onClick={resendVerificationEmail}
-                  disabled={isLoading}
-                  type="button"
-                >
-                  שלח לי דוא"ל אימות שוב
-                </Button>
-              </AlertDescription>
-            </Alert>
-          )}
 
           {isEmailLogin ? (
             <form onSubmit={handleEmailLogin} className="space-y-4">

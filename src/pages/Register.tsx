@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -10,8 +11,6 @@ import { Form, FormField, FormItem, FormControl, FormMessage } from "@/component
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import { MailCheck } from "lucide-react";
 
 const registerSchema = z.object({
   name: z.string().min(2, { message: "שם חייב להכיל לפחות 2 תווים" }),
@@ -27,7 +26,6 @@ type RegisterFormValues = z.infer<typeof registerSchema>;
 
 const Register = () => {
   const [isLoading, setIsLoading] = useState(false);
-  const [registrationComplete, setRegistrationComplete] = useState(false);
   const { toast } = useToast();
   const navigate = useNavigate();
   
@@ -47,6 +45,8 @@ const Register = () => {
     setIsLoading(true);
     try {
       console.log("Attempting to register with:", data.email);
+      
+      // Changed to directly sign up without email verification
       const { data: authData, error } = await supabase.auth.signUp({
         email: data.email,
         password: data.password,
@@ -54,6 +54,7 @@ const Register = () => {
           data: {
             full_name: data.name
           },
+          // Auto-confirm emails - no verification needed
           emailRedirectTo: `${window.location.origin}/login`
         }
       });
@@ -64,12 +65,31 @@ const Register = () => {
       }
 
       console.log("Registration successful:", authData);
-      setRegistrationComplete(true);
-      toast({
-        title: "נרשמת בהצלחה!",
-        description: "בדוק את הדוא\"ל שלך לקישור האימות",
-      });
       
+      // If the user was created successfully, sign them in immediately
+      if (authData.user) {
+        const { error: signInError } = await supabase.auth.signInWithPassword({
+          email: data.email,
+          password: data.password
+        });
+        
+        if (signInError) {
+          console.error("Auto-login error:", signInError);
+          // If auto-login fails, still consider signup a success and redirect to login
+          toast({
+            title: "נרשמת בהצלחה!",
+            description: "אנא התחבר עם הפרטים שיצרת",
+          });
+          navigate("/login");
+        } else {
+          // Successfully signed in after registration
+          toast({
+            title: "נרשמת והתחברת בהצלחה!",
+            description: "ברוכים הבאים למערכת",
+          });
+          navigate("/");
+        }
+      }
     } catch (error: any) {
       console.error("Registration error caught:", error);
       
@@ -92,36 +112,6 @@ const Register = () => {
     }
   };
 
-  if (registrationComplete) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-indigo-50 to-white p-4">
-        <Card className="w-full max-w-md shadow-lg">
-          <CardHeader className="text-center">
-            <CardTitle className="text-2xl font-bold text-primary">אימות דוא״ל</CardTitle>
-            <CardDescription>שלחנו קישור אימות לדוא״ל שלך</CardDescription>
-          </CardHeader>
-          
-          <CardContent className="space-y-4">
-            <Alert variant="default" className="mb-4 bg-blue-50 border-blue-200">
-              <MailCheck className="h-4 w-4 text-blue-500" />
-              <AlertDescription className="text-blue-700">
-                יש ללחוץ על הקישור שנשלח לדוא״ל שלך כדי להשלים את תהליך ההרשמה.
-                אחרי אימות הדוא״ל, תוכל להתחבר למערכת.
-              </AlertDescription>
-            </Alert>
-            
-            <Button 
-              className="w-full mt-6" 
-              onClick={() => navigate("/login")}
-            >
-              חזור לדף התחברות
-            </Button>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
-
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-indigo-50 to-white p-4">
       <Card className="w-full max-w-md shadow-lg">
@@ -133,14 +123,6 @@ const Register = () => {
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)}>
             <CardContent className="space-y-4">
-              <Alert variant="default" className="mb-4 bg-blue-50 border-blue-200">
-                <MailCheck className="h-4 w-4 text-blue-500" />
-                <AlertDescription className="text-blue-700">
-                  לאחר הרשמה יישלח אליך דוא״ל עם קישור לאימות החשבון.
-                  יש ללחוץ על הקישור כדי להפעיל את החשבון ולהתחבר.
-                </AlertDescription>
-              </Alert>
-              
               <FormField
                 control={form.control}
                 name="name"
