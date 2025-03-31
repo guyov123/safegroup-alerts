@@ -1,37 +1,91 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Plus, Users, UserPlus, Search, MoreVertical, UserCheck, UserX, Edit } from "lucide-react";
+import { Plus, Users, UserPlus, Search, MoreVertical, UserCheck, UserX, Edit, Trash2, Loader2 } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { Label } from "@/components/ui/label";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+
+// Define types for our data
+interface Group {
+  id: string;
+  name: string;
+  created_at: string;
+}
+
+interface GroupMember {
+  id: string;
+  group_id: string;
+  email: string;
+  name: string | null;
+  created_at: string;
+}
 
 const Groups = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [isCreateGroupOpen, setIsCreateGroupOpen] = useState(false);
   const [newGroupName, setNewGroupName] = useState("");
+  const [groups, setGroups] = useState<Group[]>([]);
+  const [loading, setLoading] = useState(true);
   
-  // Mock data
-  const groups = [
-    { id: 1, name: "משפחה", members: 4 },
-    { id: 2, name: "עבודה", members: 8 },
-    { id: 3, name: "חברים", members: 5 },
-  ];
+  // Fetch groups on component mount
+  useEffect(() => {
+    fetchGroups();
+  }, []);
   
-  // Filtered groups
+  const fetchGroups = async () => {
+    try {
+      setLoading(true);
+      const { data, error } = await supabase
+        .from('groups')
+        .select('*')
+        .order('created_at', { ascending: false });
+      
+      if (error) throw error;
+      
+      setGroups(data || []);
+    } catch (error) {
+      console.error('Error fetching groups:', error);
+      toast.error('שגיאה בטעינת הקבוצות');
+    } finally {
+      setLoading(false);
+    }
+  };
+  
+  // Filtered groups based on search query
   const filteredGroups = groups.filter(group => 
     group.name.includes(searchQuery)
   );
   
-  const handleCreateGroup = () => {
-    // Here would be the logic to create a new group
-    console.log("Creating group:", newGroupName);
-    setIsCreateGroupOpen(false);
-    setNewGroupName("");
+  const handleCreateGroup = async () => {
+    if (!newGroupName.trim()) return;
+    
+    try {
+      const { data, error } = await supabase
+        .from('groups')
+        .insert([{ name: newGroupName }])
+        .select()
+        .single();
+      
+      if (error) throw error;
+      
+      toast.success('הקבוצה נוצרה בהצלחה');
+      setGroups(prevGroups => [data, ...prevGroups]);
+      setIsCreateGroupOpen(false);
+      setNewGroupName("");
+    } catch (error) {
+      console.error('Error creating group:', error);
+      toast.error('שגיאה ביצירת הקבוצה');
+    }
   };
   
   return (
@@ -94,32 +148,138 @@ const Groups = () => {
         />
       </div>
       
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-        {filteredGroups.map(group => (
-          <GroupCard key={group.id} group={group} />
-        ))}
-      </div>
+      {loading ? (
+        <div className="flex justify-center items-center py-10">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        </div>
+      ) : filteredGroups.length > 0 ? (
+        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+          {filteredGroups.map(group => (
+            <GroupCard key={group.id} group={group} onDelete={fetchGroups} />
+          ))}
+        </div>
+      ) : (
+        <div className="text-center py-10">
+          <Users className="h-12 w-12 mx-auto text-muted-foreground mb-3" />
+          <h3 className="text-lg font-medium">אין קבוצות</h3>
+          <p className="text-muted-foreground mb-4">טרם יצרת קבוצות או לא נמצאו תוצאות לחיפוש שלך</p>
+          <Button onClick={() => setIsCreateGroupOpen(true)}>
+            <Plus className="mr-2 h-4 w-4" />
+            צור קבוצה חדשה
+          </Button>
+        </div>
+      )}
     </div>
   );
 };
 
 // Group Card Component
-const GroupCard = ({ group }) => {
+const GroupCard = ({ group, onDelete }: { group: Group, onDelete: () => void }) => {
   const [isAddMemberOpen, setIsAddMemberOpen] = useState(false);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [newMemberEmail, setNewMemberEmail] = useState("");
+  const [newMemberName, setNewMemberName] = useState("");
+  const [members, setMembers] = useState<GroupMember[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  // Mock group members
-  const members = [
-    { id: 1, name: "יעל כהן", email: "yael@example.com", image: "" },
-    { id: 2, name: "דני לוי", email: "dani@example.com", image: "" },
-    { id: 3, name: "מיכל רבין", email: "michal@example.com", image: "" },
-  ];
+  useEffect(() => {
+    fetchMembers();
+  }, [group.id]);
 
-  const handleAddMember = () => {
-    // Logic to add a new member
-    console.log("Adding member:", newMemberEmail);
-    setIsAddMemberOpen(false);
-    setNewMemberEmail("");
+  const fetchMembers = async () => {
+    try {
+      setLoading(true);
+      const { data, error } = await supabase
+        .from('group_members')
+        .select('*')
+        .eq('group_id', group.id)
+        .order('created_at', { ascending: true });
+      
+      if (error) throw error;
+      
+      setMembers(data || []);
+    } catch (error) {
+      console.error('Error fetching group members:', error);
+      toast.error('שגיאה בטעינת חברי הקבוצה');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleAddMember = async () => {
+    if (!newMemberEmail.trim()) return;
+    
+    try {
+      const { data, error } = await supabase
+        .from('group_members')
+        .insert([{ 
+          group_id: group.id, 
+          email: newMemberEmail,
+          name: newMemberName.trim() || null
+        }])
+        .select()
+        .single();
+      
+      if (error) {
+        if (error.code === '23505') {
+          toast.error('כתובת האימייל כבר קיימת בקבוצה');
+        } else {
+          throw error;
+        }
+      } else {
+        toast.success('המשתמש נוסף לקבוצה בהצלחה');
+        setMembers(prevMembers => [...prevMembers, data]);
+        setIsAddMemberOpen(false);
+        setNewMemberEmail("");
+        setNewMemberName("");
+      }
+    } catch (error) {
+      console.error('Error adding member:', error);
+      toast.error('שגיאה בהוספת המשתמש לקבוצה');
+    }
+  };
+
+  const handleRemoveMember = async (memberId: string) => {
+    try {
+      const { error } = await supabase
+        .from('group_members')
+        .delete()
+        .eq('id', memberId);
+      
+      if (error) throw error;
+      
+      setMembers(prevMembers => prevMembers.filter(member => member.id !== memberId));
+      toast.success('המשתמש הוסר מהקבוצה');
+    } catch (error) {
+      console.error('Error removing member:', error);
+      toast.error('שגיאה בהסרת המשתמש מהקבוצה');
+    }
+  };
+
+  const handleDeleteGroup = async () => {
+    try {
+      const { error } = await supabase
+        .from('groups')
+        .delete()
+        .eq('id', group.id);
+      
+      if (error) throw error;
+      
+      toast.success('הקבוצה נמחקה בהצלחה');
+      onDelete();
+    } catch (error) {
+      console.error('Error deleting group:', error);
+      toast.error('שגיאה במחיקת הקבוצה');
+    } finally {
+      setIsDeleteDialogOpen(false);
+    }
+  };
+
+  const getInitials = (name: string | null) => {
+    if (!name) return '?';
+    const parts = name.trim().split(' ');
+    if (parts.length === 1) return parts[0].charAt(0).toUpperCase();
+    return (parts[0].charAt(0) + parts[parts.length - 1].charAt(0)).toUpperCase();
   };
 
   return (
@@ -139,7 +299,11 @@ const GroupCard = ({ group }) => {
                 ערוך קבוצה
               </DropdownMenuItem>
               <DropdownMenuSeparator />
-              <DropdownMenuItem className="text-destructive">
+              <DropdownMenuItem 
+                className="text-destructive" 
+                onClick={() => setIsDeleteDialogOpen(true)}
+              >
+                <Trash2 className="mr-2 h-4 w-4" />
                 מחק קבוצה
               </DropdownMenuItem>
             </DropdownMenuContent>
@@ -150,49 +314,62 @@ const GroupCard = ({ group }) => {
             <CardDescription className="mt-1">
               <Badge variant="outline" className="gap-1">
                 <Users className="h-3 w-3" />
-                {group.members} חברים
+                {members.length} חברים
               </Badge>
             </CardDescription>
           </div>
         </div>
       </CardHeader>
       <CardContent className="pb-2">
-        <div className="space-y-3">
-          {members.slice(0, 3).map(member => (
-            <div key={member.id} className="flex items-center justify-between">
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="icon">
-                    <MoreVertical className="h-4 w-4" />
-                    <span className="sr-only">פתח תפריט</span>
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  <DropdownMenuItem>
-                    <UserCheck className="mr-2 h-4 w-4" />
-                    שלח תזכורת
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem className="text-destructive">
-                    <UserX className="mr-2 h-4 w-4" />
-                    הסר מהקבוצה
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-              
-              <div className="flex items-center gap-3">
-                <div className="text-right">
-                  <div className="font-medium">{member.name}</div>
-                  <div className="text-xs text-muted-foreground">{member.email}</div>
+        {loading ? (
+          <div className="flex justify-center py-4">
+            <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+          </div>
+        ) : members.length > 0 ? (
+          <div className="space-y-3">
+            {members.map(member => (
+              <div key={member.id} className="flex items-center justify-between">
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" size="icon">
+                      <MoreVertical className="h-4 w-4" />
+                      <span className="sr-only">פתח תפריט</span>
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem>
+                      <UserCheck className="mr-2 h-4 w-4" />
+                      שלח תזכורת
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem 
+                      className="text-destructive"
+                      onClick={() => handleRemoveMember(member.id)}
+                    >
+                      <UserX className="mr-2 h-4 w-4" />
+                      הסר מהקבוצה
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+                
+                <div className="flex items-center gap-3">
+                  <div className="text-right">
+                    <div className="font-medium">{member.name || "משתמש"}</div>
+                    <div className="text-xs text-muted-foreground">{member.email}</div>
+                  </div>
+                  <Avatar>
+                    <AvatarImage src="" alt={member.name || "משתמש"} />
+                    <AvatarFallback>{getInitials(member.name)}</AvatarFallback>
+                  </Avatar>
                 </div>
-                <Avatar>
-                  <AvatarImage src={member.image} alt={member.name} />
-                  <AvatarFallback>{member.name.charAt(0)}</AvatarFallback>
-                </Avatar>
               </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        ) : (
+          <div className="text-center py-2 text-sm text-muted-foreground">
+            אין חברים בקבוצה זו
+          </div>
+        )}
       </CardContent>
       <CardFooter className="pt-2">
         <Dialog open={isAddMemberOpen} onOpenChange={setIsAddMemberOpen}>
@@ -206,20 +383,35 @@ const GroupCard = ({ group }) => {
             <DialogHeader>
               <DialogTitle className="text-right">הוספת חבר לקבוצה</DialogTitle>
               <DialogDescription className="text-right">
-                הזן את כתובת הדוא"ל של החבר שברצונך להוסיף ל{group.name}
+                הזן את פרטי החבר שברצונך להוסיף ל{group.name}
               </DialogDescription>
             </DialogHeader>
             <div className="space-y-4 py-4">
               <div className="space-y-2">
-                <label htmlFor="email" className="text-sm font-medium text-right block">
-                  כתובת דוא"ל
-                </label>
+                <Label htmlFor="email" className="text-right block">
+                  כתובת דוא"ל *
+                </Label>
                 <Input
                   id="email"
                   placeholder="הזן כתובת דוא״ל"
                   type="email"
                   value={newMemberEmail}
                   onChange={(e) => setNewMemberEmail(e.target.value)}
+                  className="text-right"
+                  dir="rtl"
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="name" className="text-right block">
+                  שם (אופציונלי)
+                </Label>
+                <Input
+                  id="name"
+                  placeholder="הזן שם"
+                  type="text"
+                  value={newMemberName}
+                  onChange={(e) => setNewMemberName(e.target.value)}
                   className="text-right"
                   dir="rtl"
                 />
@@ -235,6 +427,23 @@ const GroupCard = ({ group }) => {
             </DialogFooter>
           </DialogContent>
         </Dialog>
+
+        <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle className="text-right">האם אתה בטוח?</AlertDialogTitle>
+              <AlertDialogDescription className="text-right">
+                פעולה זו תמחק את הקבוצה "{group.name}" וכל החברים שבה. פעולה זו לא ניתנת לביטול.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter className="flex flex-row-reverse justify-start">
+              <AlertDialogAction onClick={handleDeleteGroup} className="bg-destructive hover:bg-destructive/90">
+                מחק
+              </AlertDialogAction>
+              <AlertDialogCancel>ביטול</AlertDialogCancel>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </CardFooter>
     </Card>
   );
