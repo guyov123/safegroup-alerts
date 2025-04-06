@@ -28,7 +28,7 @@ export function useMapUsers(currentPosition?: { latitude: number, longitude: num
   const [mapUsers, setMapUsers] = useState<MapUser[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   
-  // Fetch group members
+  // Fetch group members and set up realtime subscription
   useEffect(() => {
     const fetchGroupMembers = async () => {
       try {
@@ -161,6 +161,7 @@ export function useMapUsers(currentPosition?: { latitude: number, longitude: num
       }
     };
     
+    // Initial fetch
     fetchGroupMembers();
     
     // Setup real-time listener for safety status updates
@@ -174,12 +175,16 @@ export function useMapUsers(currentPosition?: { latitude: number, longitude: num
         },
         (payload) => {
           console.log("Safety status updated:", payload);
-          fetchGroupMembers();
+          toast.success("עדכון סטטוס חדש התקבל");
+          fetchGroupMembers(); // Refetch all data when a new status is inserted
         }
       )
-      .subscribe();
+      .subscribe((status) => {
+        console.log("Realtime subscription status:", status);
+      });
       
     return () => {
+      console.log("Cleaning up realtime subscription");
       supabase.removeChannel(safetyChannel);
     };
   }, [currentPosition]);

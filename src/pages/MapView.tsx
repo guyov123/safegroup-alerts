@@ -26,10 +26,12 @@ const MapView = () => {
       longitude: currentPosition.coords.longitude 
     } : null
   );
+
   const mapboxToken = useMapboxToken();
 
   const handleMapInit = (map: mapboxgl.Map) => {
     setMapInstance(map);
+    console.log("Map initialized");
   };
   
   // Debug information
@@ -51,6 +53,11 @@ const MapView = () => {
       return;
     }
     
+    if (isLoading) {
+      console.log("Map users are still loading");
+      return;
+    }
+    
     if (!mapUsers || mapUsers.length === 0) {
       console.log("No map users to display");
       return;
@@ -63,7 +70,7 @@ const MapView = () => {
     // Add or update markers for each user with location
     mapUsers.forEach(user => {
       if (user.latitude && user.longitude) {
-        console.log(`Adding/updating marker for user ${user.name} at ${user.latitude}, ${user.longitude}`);
+        console.log(`Adding/updating marker for user ${user.name} at ${user.latitude}, ${user.longitude}, status: ${user.status}`);
         
         if (newMarkers[user.id]) {
           // Update existing marker
@@ -159,7 +166,18 @@ const MapView = () => {
       // Clean up markers when component unmounts
       Object.values(newMarkers).forEach(marker => marker.remove());
     };
-  }, [mapInstance, mapUsers]);
+  }, [mapInstance, mapUsers, isLoading]);
+  
+  // Function to center the map on a user
+  const centerOnUser = (user: MapUser) => {
+    if (mapInstance && user.latitude && user.longitude) {
+      mapInstance.flyTo({
+        center: [user.longitude, user.latitude],
+        zoom: 15,
+        essential: true
+      });
+    }
+  };
   
   return (
     <div className="h-screen relative">
@@ -184,7 +202,10 @@ const MapView = () => {
       <UsersList 
         users={mapUsers}
         isLoading={isLoading}
-        onSelectUser={setSelectedUser}
+        onSelectUser={(user) => {
+          setSelectedUser(user);
+          centerOnUser(user);
+        }}
       />
     </div>
   );

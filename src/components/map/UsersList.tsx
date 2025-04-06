@@ -114,6 +114,7 @@ const UsersList = ({ users, isLoading, onSelectUser }: UsersListProps) => {
                 
                 {user.latitude && user.longitude && (
                   <div className="flex items-center gap-1">
+                    <span>{user.location}</span>
                     <MapPin className="h-3 w-3" />
                   </div>
                 )}
