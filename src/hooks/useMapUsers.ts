@@ -24,6 +24,19 @@ const calculateDistance = (
   return R * c; // Distance in km
 };
 
+// Define a type for the group member from database
+interface GroupMember {
+  id: string;
+  group_id: string;
+  email: string;
+  name: string | null;
+  created_at: string;
+  auth_id: string | null;
+  groups: {
+    name: string;
+  };
+}
+
 export function useMapUsers(
   currentPosition?: { latitude: number, longitude: number } | null,
   onRealtimeStatusChange?: (status: string) => void
@@ -173,7 +186,7 @@ export function useMapUsers(
         }
         
         // Enhanced logging for debugging member data
-        console.log("Group members details:", members.map(m => ({ 
+        console.log("Group members details:", (members as GroupMember[]).map(m => ({ 
           id: m.id, 
           email: m.email, 
           name: m.name,
@@ -230,7 +243,7 @@ export function useMapUsers(
         console.log("Latest statuses by member:", Object.keys(latestStatusByMember).length);
         
         // Transform the data to match the MapUser interface
-        const formattedMembers = members.map(member => {
+        const formattedMembers = (members as GroupMember[]).map(member => {
           const latestStatus = latestStatusByMember[member.id];
           
           // Debug information for mrshapron@gmail.com
