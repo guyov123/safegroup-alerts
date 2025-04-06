@@ -1,6 +1,7 @@
+
 import React, { useRef, useEffect, useState } from 'react';
 import mapboxgl from 'mapbox-gl';
-import { GeolocationPosition } from './types';
+import { GeolocationPosition } from '@/components/map/types';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import { toast } from "sonner";
 import { format, formatDistance, formatDistanceToNow } from 'date-fns';
