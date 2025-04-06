@@ -15,13 +15,21 @@ interface MapProps {
     onClick?: () => void;
   }>;
   onMapClick?: (lngLat: { lng: number; lat: number }) => void;
+  onLocationFound?: (coordinates: [number, number]) => void;
 }
 
-const Map = ({ center = [34.8516, 31.0461], zoom = 7, markers = [], onMapClick }: MapProps) => {
+const Map = ({ 
+  center = [34.8516, 31.0461], 
+  zoom = 7, 
+  markers = [], 
+  onMapClick,
+  onLocationFound 
+}: MapProps) => {
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<mapboxgl.Map | null>(null);
   const markersRef = useRef<{ [key: string]: mapboxgl.Marker }>({});
   const [mapLoaded, setMapLoaded] = useState(false);
+  const locationMarkerRef = useRef<mapboxgl.Marker | null>(null);
 
   // Initialize map
   useEffect(() => {
@@ -34,8 +42,29 @@ const Map = ({ center = [34.8516, 31.0461], zoom = 7, markers = [], onMapClick }
       zoom: zoom,
     });
 
+    // Add location control
+    const geolocate = new mapboxgl.GeolocateControl({
+      positionOptions: {
+        enableHighAccuracy: true
+      },
+      trackUserLocation: true,
+      showUserHeading: true
+    });
+
+    map.current.addControl(geolocate);
+
+    // Handle location found
+    geolocate.on('geolocate', (e: any) => {
+      const coordinates: [number, number] = [e.coords.longitude, e.coords.latitude];
+      if (onLocationFound) {
+        onLocationFound(coordinates);
+      }
+    });
+
     map.current.on('load', () => {
       setMapLoaded(true);
+      // Trigger location search automatically
+      geolocate.trigger();
     });
 
     if (onMapClick) {

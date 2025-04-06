@@ -31,6 +31,7 @@ const MapView = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [mapCenter, setMapCenter] = useState<[number, number]>([34.8516, 31.0461]); // Israel center
   const [mapZoom, setMapZoom] = useState(7);
+  const [userLocation, setUserLocation] = useState<[number, number] | null>(null);
   
   useEffect(() => {
     const fetchGroupMembers = async () => {
@@ -127,6 +128,12 @@ const MapView = () => {
       setMapZoom(15);
     }
   };
+
+  const handleLocationFound = (coordinates: [number, number]) => {
+    setUserLocation(coordinates);
+    setMapCenter(coordinates);
+    setMapZoom(15);
+  };
   
   return (
     <div className="h-screen relative">
@@ -134,14 +141,27 @@ const MapView = () => {
       <Map
         center={mapCenter}
         zoom={mapZoom}
-        markers={mapUsers
-          .filter(user => user.coordinates)
-          .map(user => ({
-            id: user.id,
-            coordinates: user.coordinates!,
-            color: user.status === "safe" ? "#10B981" : "#F59E0B",
-            onClick: () => handleUserClick(user)
-          }))}
+        markers={[
+          ...mapUsers
+            .filter(user => user.coordinates)
+            .map(user => ({
+              id: user.id,
+              coordinates: user.coordinates!,
+              color: user.status === "safe" ? "#10B981" : "#F59E0B",
+              onClick: () => handleUserClick(user)
+            })),
+          // Add user's location marker if available
+          ...(userLocation ? [{
+            id: 'current-location',
+            coordinates: userLocation,
+            color: '#3B82F6', // Blue color for current location
+            onClick: () => {
+              setMapCenter(userLocation);
+              setMapZoom(15);
+            }
+          }] : [])
+        ]}
+        onLocationFound={handleLocationFound}
       />
       
       {/* Map Controls */}
