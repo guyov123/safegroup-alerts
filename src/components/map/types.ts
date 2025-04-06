@@ -18,7 +18,7 @@ export interface GeolocationPosition {
     altitudeAccuracy: number | null;
     heading: number | null;
     speed: number | null;
-    toJSON?: () => any;
+    toJSON: () => any; // Changed from optional to required
   };
   timestamp: number;
   toJSON?: () => any;

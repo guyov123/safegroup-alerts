@@ -31,9 +31,21 @@ export function useLocation() {
                 altitude: position.coords.altitude,
                 altitudeAccuracy: position.coords.altitudeAccuracy,
                 heading: position.coords.heading,
-                speed: position.coords.speed
+                speed: position.coords.speed,
+                toJSON: position.coords.toJSON || (() => {
+                  return {
+                    latitude: position.coords.latitude,
+                    longitude: position.coords.longitude,
+                    accuracy: position.coords.accuracy,
+                    altitude: position.coords.altitude,
+                    altitudeAccuracy: position.coords.altitudeAccuracy,
+                    heading: position.coords.heading,
+                    speed: position.coords.speed,
+                  };
+                })
               },
-              timestamp: position.timestamp
+              timestamp: position.timestamp,
+              toJSON: position.toJSON
             });
             toast.success("המיקום נמצא בהצלחה");
           },
@@ -74,9 +86,21 @@ export function useLocation() {
                 altitude: position.coords.altitude,
                 altitudeAccuracy: position.coords.altitudeAccuracy,
                 heading: position.coords.heading,
-                speed: position.coords.speed
+                speed: position.coords.speed,
+                toJSON: position.coords.toJSON || (() => {
+                  return {
+                    latitude: position.coords.latitude,
+                    longitude: position.coords.longitude,
+                    accuracy: position.coords.accuracy,
+                    altitude: position.coords.altitude,
+                    altitudeAccuracy: position.coords.altitudeAccuracy,
+                    heading: position.coords.heading,
+                    speed: position.coords.speed,
+                  };
+                })
               },
-              timestamp: position.timestamp
+              timestamp: position.timestamp,
+              toJSON: position.toJSON
             });
           },
           (error) => {
