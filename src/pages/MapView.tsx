@@ -10,6 +10,7 @@ import LocationErrorMessage from "@/components/map/LocationErrorMessage";
 import UserCard from "@/components/map/UserCard";
 import UsersList from "@/components/map/UsersList";
 import mapboxgl from 'mapbox-gl';
+import { toast } from "sonner";
 
 const MapView = () => {
   const [selectedUser, setSelectedUser] = useState<MapUser | null>(null);
@@ -31,15 +32,39 @@ const MapView = () => {
     setMapInstance(map);
   };
   
+  // Debug information
+  useEffect(() => {
+    if (mapUsers && mapUsers.length > 0) {
+      console.log("MapUsers loaded:", mapUsers.length, "users");
+      mapUsers.forEach(user => {
+        console.log(`User ${user.name} - latitude: ${user.latitude}, longitude: ${user.longitude}, status: ${user.status}, time: ${user.time}, distance: ${user.distance}`);
+      });
+    } else {
+      console.log("No map users loaded or empty array");
+    }
+  }, [mapUsers]);
+  
   // Add/update member markers on the map
   useEffect(() => {
-    if (!mapInstance || mapUsers.length === 0) return;
+    if (!mapInstance) {
+      console.log("Map instance not loaded yet");
+      return;
+    }
+    
+    if (!mapUsers || mapUsers.length === 0) {
+      console.log("No map users to display");
+      return;
+    }
+    
+    console.log("Updating map markers for", mapUsers.length, "users");
     
     const newMarkers: {[key: string]: mapboxgl.Marker} = {...membersMarkers};
     
     // Add or update markers for each user with location
     mapUsers.forEach(user => {
       if (user.latitude && user.longitude) {
+        console.log(`Adding/updating marker for user ${user.name} at ${user.latitude}, ${user.longitude}`);
+        
         if (newMarkers[user.id]) {
           // Update existing marker
           newMarkers[user.id].setLngLat([user.longitude, user.latitude]);
@@ -91,7 +116,7 @@ const MapView = () => {
           
           // Show popup on hover
           markerEl.addEventListener('mouseenter', () => {
-            popup.addTo(mapInstance);
+            popup.setLngLat([user.longitude, user.latitude]).addTo(mapInstance);
           });
           
           markerEl.addEventListener('mouseleave', () => {
@@ -109,7 +134,6 @@ const MapView = () => {
             anchor: 'center'
           })
           .setLngLat([user.longitude, user.latitude])
-          .setPopup(popup)
           .addTo(mapInstance);
           
           newMarkers[user.id] = marker;
@@ -125,6 +149,7 @@ const MapView = () => {
     Object.keys(membersMarkers).forEach(id => {
       if (!mapUsers.find(user => user.id === id) && membersMarkers[id]) {
         membersMarkers[id].remove();
+        delete newMarkers[id];
       }
     });
     

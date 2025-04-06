@@ -38,9 +38,12 @@ export function useMapUsers(currentPosition?: { latitude: number, longitude: num
         const { data: { user } } = await supabase.auth.getUser();
         
         if (!user) {
+          console.log("User not authenticated");
           setIsLoading(false);
           return;
         }
+        
+        console.log("Fetching groups for user ID:", user.id);
         
         // Fetch groups that belong to the current user
         const { data: groups, error: groupsError } = await supabase
@@ -55,6 +58,8 @@ export function useMapUsers(currentPosition?: { latitude: number, longitude: num
           return;
         }
         
+        console.log("User groups found:", groups?.length || 0);
+        
         if (!groups || groups.length === 0) {
           setMapUsers([]);
           setIsLoading(false);
@@ -63,6 +68,7 @@ export function useMapUsers(currentPosition?: { latitude: number, longitude: num
         
         // Fetch all members from the user's groups
         const groupIds = groups.map(group => group.id);
+        console.log("Fetching members for group IDs:", groupIds);
         
         const { data: members, error: membersError } = await supabase
           .from('group_members')
@@ -76,8 +82,12 @@ export function useMapUsers(currentPosition?: { latitude: number, longitude: num
           return;
         }
         
+        console.log("Group members found:", members?.length || 0);
+        
         // Fetch the latest safety status for each member
         const memberIds = members.map(member => member.id);
+        console.log("Fetching safety statuses for member IDs:", memberIds);
+        
         const { data: safetyStatuses, error: safetyError } = await supabase
           .from('member_safety_status')
           .select('*')
@@ -91,6 +101,8 @@ export function useMapUsers(currentPosition?: { latitude: number, longitude: num
           return;
         }
         
+        console.log("Safety statuses found:", safetyStatuses?.length || 0);
+        
         // Get the latest status for each member
         const latestStatusByMember = safetyStatuses ? 
           safetyStatuses.reduce((acc, status) => {
@@ -99,6 +111,8 @@ export function useMapUsers(currentPosition?: { latitude: number, longitude: num
             }
             return acc;
           }, {} as Record<string, any>) : {};
+          
+        console.log("Latest statuses by member:", Object.keys(latestStatusByMember).length);
         
         // Transform the data to match the MapUser interface
         const formattedMembers = members.map(member => {
@@ -133,6 +147,11 @@ export function useMapUsers(currentPosition?: { latitude: number, longitude: num
           };
         });
         
+        console.log("Formatted members:", formattedMembers.length);
+        formattedMembers.forEach(member => {
+          console.log(`Member ${member.name} - lat: ${member.latitude}, lng: ${member.longitude}`);
+        });
+        
         setMapUsers(formattedMembers);
         setIsLoading(false);
       } catch (error) {
@@ -153,8 +172,8 @@ export function useMapUsers(currentPosition?: { latitude: number, longitude: num
           schema: 'public', 
           table: 'member_safety_status' 
         },
-        () => {
-          console.log("Safety status updated, refreshing data");
+        (payload) => {
+          console.log("Safety status updated:", payload);
           fetchGroupMembers();
         }
       )

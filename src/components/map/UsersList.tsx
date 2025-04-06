@@ -13,6 +13,8 @@ interface UsersListProps {
 
 const UsersList = ({ users, isLoading, onSelectUser }: UsersListProps) => {
   const [searchQuery, setSearchQuery] = useState("");
+  
+  console.log("UsersList rendered with", users.length, "users");
 
   // Filter users based on search query
   const filteredUsers = searchQuery 
