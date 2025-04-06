@@ -11,6 +11,16 @@ interface MapComponentProps {
   onMapInit: (map: mapboxgl.Map) => void;
 }
 
+// Define the structure of Mapbox error object
+interface MapboxError {
+  error?: {
+    status?: number;
+    message?: string;
+  };
+  status?: number;
+  message?: string;
+}
+
 const MapComponent = ({ mapboxToken, currentPosition, onMapInit }: MapComponentProps) => {
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<mapboxgl.Map | null>(null);
@@ -42,9 +52,10 @@ const MapComponent = ({ mapboxToken, currentPosition, onMapInit }: MapComponentP
         setMapError(false);
       });
       
-      newMap.on('error', (e) => {
+      newMap.on('error', (e: MapboxError) => {
         console.error('Mapbox error:', e);
-        if (e.error && e.error.status === 401) {
+        // Check for authentication error (401) in different possible locations
+        if ((e.error && e.error.status === 401) || e.status === 401) {
           setMapError(true);
           toast.error('שגיאת אימות למפה - מפתח API לא תקין');
         }
