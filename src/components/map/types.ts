@@ -13,7 +13,7 @@ export interface GeolocationPosition {
   coords: {
     latitude: number;
     longitude: number;
-    accuracy?: number;
+    accuracy: number; // Changed from optional to required
     altitude: number | null;
     altitudeAccuracy: number | null;
     heading: number | null;
