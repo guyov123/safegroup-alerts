@@ -4,7 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { MapPin, Clock, UserCheck } from "lucide-react";
+import { MapPin, Clock, UserCheck, Navigation } from "lucide-react";
 import { MapUser } from "./types";
 
 interface UserCardProps {
@@ -48,6 +48,14 @@ const UserCard = ({ user, onClose }: UserCardProps) => {
                 <MapPin className="h-4 w-4 text-muted-foreground" />
               </div>
             )}
+            
+            {user.distance !== undefined && (
+              <div className="flex items-center justify-end gap-2">
+                <div className="text-sm">{user.distance} ק"מ ממך</div>
+                <Navigation className="h-4 w-4 text-muted-foreground" />
+              </div>
+            )}
+            
             {user.status === "safe" && user.time && (
               <div className="flex items-center justify-end gap-2">
                 <div className="text-sm flex items-center">

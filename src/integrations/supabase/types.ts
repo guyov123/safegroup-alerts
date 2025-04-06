@@ -62,6 +62,41 @@ export type Database = {
         }
         Relationships: []
       }
+      member_safety_status: {
+        Row: {
+          id: string
+          latitude: number | null
+          longitude: number | null
+          member_id: string
+          reported_at: string
+          status: string
+        }
+        Insert: {
+          id?: string
+          latitude?: number | null
+          longitude?: number | null
+          member_id: string
+          reported_at?: string
+          status: string
+        }
+        Update: {
+          id?: string
+          latitude?: number | null
+          longitude?: number | null
+          member_id?: string
+          reported_at?: string
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "member_safety_status_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "group_members"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never

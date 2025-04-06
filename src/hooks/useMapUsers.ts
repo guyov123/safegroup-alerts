@@ -3,8 +3,28 @@ import { useState, useEffect } from 'react';
 import { MapUser } from '@/components/map/types';
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { formatDistance, formatDistanceToNow } from 'date-fns';
+import { he } from 'date-fns/locale';
 
-export function useMapUsers() {
+// Function to calculate distance between two points in kilometers
+const calculateDistance = (
+  lat1: number, 
+  lon1: number, 
+  lat2: number, 
+  lon2: number
+): number => {
+  const R = 6371; // Radius of the earth in km
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLon = (lon2 - lon1) * Math.PI / 180; 
+  const a = 
+    Math.sin(dLat/2) * Math.sin(dLat/2) +
+    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * 
+    Math.sin(dLon/2) * Math.sin(dLon/2); 
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a)); 
+  return R * c; // Distance in km
+};
+
+export function useMapUsers(currentPosition?: { latitude: number, longitude: number } | null) {
   const [mapUsers, setMapUsers] = useState<MapUser[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   
@@ -56,16 +76,62 @@ export function useMapUsers() {
           return;
         }
         
+        // Fetch the latest safety status for each member
+        const memberIds = members.map(member => member.id);
+        const { data: safetyStatuses, error: safetyError } = await supabase
+          .from('member_safety_status')
+          .select('*')
+          .in('member_id', memberIds)
+          .order('reported_at', { ascending: false });
+          
+        if (safetyError) {
+          console.error("Error fetching safety statuses:", safetyError);
+          toast.error("שגיאה בטעינת נתוני בטיחות");
+          setIsLoading(false);
+          return;
+        }
+        
+        // Get the latest status for each member
+        const latestStatusByMember = safetyStatuses ? 
+          safetyStatuses.reduce((acc, status) => {
+            if (!acc[status.member_id] || new Date(status.reported_at) > new Date(acc[status.member_id].reported_at)) {
+              acc[status.member_id] = status;
+            }
+            return acc;
+          }, {} as Record<string, any>) : {};
+        
         // Transform the data to match the MapUser interface
-        const formattedMembers = members.map(member => ({
-          id: member.id,
-          name: member.name || member.email,
-          status: "safe" as "safe" | "unknown",
-          time: "",
-          location: "",
-          group: member.groups.name,
-          image: ""
-        }));
+        const formattedMembers = members.map(member => {
+          const latestStatus = latestStatusByMember[member.id];
+          let distance: number | undefined = undefined;
+          
+          // Calculate distance if both positions are available
+          if (latestStatus?.latitude && latestStatus?.longitude && currentPosition?.latitude && currentPosition?.longitude) {
+            distance = calculateDistance(
+              currentPosition.latitude,
+              currentPosition.longitude,
+              latestStatus.latitude,
+              latestStatus.longitude
+            );
+          }
+          
+          const formattedTime = latestStatus ? 
+            formatDistanceToNow(new Date(latestStatus.reported_at), { addSuffix: true, locale: he }) : "";
+          
+          return {
+            id: member.id,
+            name: member.name || member.email,
+            status: latestStatus?.status || "unknown" as "safe" | "unknown",
+            time: formattedTime,
+            lastReported: latestStatus?.reported_at,
+            latitude: latestStatus?.latitude,
+            longitude: latestStatus?.longitude,
+            location: latestStatus?.latitude ? `${latestStatus.latitude.toFixed(5)}, ${latestStatus.longitude.toFixed(5)}` : "",
+            group: member.groups.name,
+            image: "",
+            distance: distance ? Number(distance.toFixed(2)) : undefined
+          };
+        });
         
         setMapUsers(formattedMembers);
         setIsLoading(false);
@@ -77,7 +143,27 @@ export function useMapUsers() {
     };
     
     fetchGroupMembers();
-  }, []);
+    
+    // Setup real-time listener for safety status updates
+    const safetyChannel = supabase
+      .channel('member_safety_updates')
+      .on('postgres_changes', 
+        { 
+          event: 'INSERT', 
+          schema: 'public', 
+          table: 'member_safety_status' 
+        },
+        () => {
+          console.log("Safety status updated, refreshing data");
+          fetchGroupMembers();
+        }
+      )
+      .subscribe();
+      
+    return () => {
+      supabase.removeChannel(safetyChannel);
+    };
+  }, [currentPosition]);
 
   return { mapUsers, isLoading };
 }

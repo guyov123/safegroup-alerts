@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Search, Users } from "lucide-react";
+import { Search, Users, Clock, Navigation } from "lucide-react";
 import { MapUser } from "./types";
 
 interface UsersListProps {
@@ -17,11 +17,31 @@ const UsersList = ({ users, isLoading, onSelectUser }: UsersListProps) => {
   // Filter users based on search query
   const filteredUsers = searchQuery 
     ? users.filter(user => 
-        user.name.includes(searchQuery) || 
-        user.group.includes(searchQuery) ||
-        (user.location && user.location.includes(searchQuery))
+        user.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
+        user.group.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (user.location && user.location.toLowerCase().includes(searchQuery.toLowerCase()))
       )
     : users;
+  
+  // Sort by status (safe first), then by reported time (most recent first)
+  const sortedUsers = [...filteredUsers].sort((a, b) => {
+    // Sort by status first (safe before unknown)
+    if (a.status !== b.status) {
+      return a.status === "safe" ? -1 : 1;
+    }
+    
+    // Then sort by reported time (if both have timestamps)
+    if (a.lastReported && b.lastReported) {
+      return new Date(b.lastReported).getTime() - new Date(a.lastReported).getTime();
+    }
+    
+    // Put users with timestamps before those without
+    if (a.lastReported && !b.lastReported) return -1;
+    if (!a.lastReported && b.lastReported) return 1;
+    
+    // Fall back to sorting by name
+    return a.name.localeCompare(b.name);
+  });
   
   return (
     <div className="absolute top-4 right-4 z-10 w-80 bg-white rounded-md shadow-md">
@@ -39,16 +59,16 @@ const UsersList = ({ users, isLoading, onSelectUser }: UsersListProps) => {
           />
         </div>
       </div>
-      <div className="max-h-60 overflow-y-auto p-2">
+      <div className="max-h-80 overflow-y-auto p-2">
         {isLoading ? (
           <div className="p-4 text-center">
             <p className="text-muted-foreground">טוען נתונים...</p>
           </div>
-        ) : filteredUsers.length > 0 ? (
-          filteredUsers.map(user => (
+        ) : sortedUsers.length > 0 ? (
+          sortedUsers.map(user => (
             <div 
               key={user.id} 
-              className="p-2 hover:bg-accent rounded-md cursor-pointer transition-colors"
+              className="p-2 hover:bg-accent rounded-md cursor-pointer transition-colors mb-1"
               onClick={() => onSelectUser(user)}
             >
               <div className="flex items-center justify-between">
@@ -73,6 +93,25 @@ const UsersList = ({ users, isLoading, onSelectUser }: UsersListProps) => {
                   </Avatar>
                 </div>
               </div>
+              
+              {/* Extra info row */}
+              {(user.time || user.distance !== undefined) && (
+                <div className="flex items-center gap-2 justify-end mt-1 text-xs text-muted-foreground">
+                  {user.time && (
+                    <div className="flex items-center gap-1">
+                      <span>{user.time}</span>
+                      <Clock className="h-3 w-3" />
+                    </div>
+                  )}
+                  
+                  {user.distance !== undefined && (
+                    <div className="flex items-center gap-1">
+                      <span>{user.distance} ק"מ</span>
+                      <Navigation className="h-3 w-3" />
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           ))
         ) : (

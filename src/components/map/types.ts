@@ -7,6 +7,10 @@ export interface MapUser {
   location?: string;
   group: string;
   image: string;
+  latitude?: number;
+  longitude?: number;
+  distance?: number;
+  lastReported?: string;
 }
 
 export interface GeolocationPosition {
@@ -23,3 +27,4 @@ export interface GeolocationPosition {
   timestamp: number;
   toJSON: () => any; // Changed from optional to required
 }
+
