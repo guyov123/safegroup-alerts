@@ -9,6 +9,9 @@ const NoLocationWarning = () => {
         <AlertTriangle className="h-4 w-4" />
         <p className="text-xs">אין חברים עם נתוני מיקום זמינים</p>
       </div>
+      <p className="text-xs text-amber-600 text-center mt-1">
+        יתכן שהחברים לא דיווחו סטטוס או שטרם אפשרו שיתוף מיקום
+      </p>
     </div>
   );
 };

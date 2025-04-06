@@ -28,6 +28,7 @@ export const AddMemberDialog = ({ groupId, groupName, members, onMemberAdded }: 
     try {
       setCheckingEmail(true);
       
+      // Check if the email already exists in this group
       const existingMember = members.find(member => 
         member.email.toLowerCase() === newMemberEmail.toLowerCase()
       );
@@ -38,11 +39,7 @@ export const AddMemberDialog = ({ groupId, groupName, members, onMemberAdded }: 
         return;
       }
       
-      // Since we can't use Supabase admin API directly from the client,
-      // we'll skip the strict user validation and just check for valid email format
-      // This is a simplified approach - in a production app, you might want to validate
-      // via a server function or API endpoint
-      
+      // Validate email format
       const isValidEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(newMemberEmail);
       
       if (!isValidEmail) {
@@ -51,13 +48,39 @@ export const AddMemberDialog = ({ groupId, groupName, members, onMemberAdded }: 
         return;
       }
       
+      // First check if this user already exists in any group by email
+      // This helps ensure consistent member_id across groups
+      const { data: existingMemberInOtherGroups, error: searchError } = await supabase
+        .from('group_members')
+        .select('id, name')
+        .eq('email', newMemberEmail.toLowerCase())
+        .limit(1);
+      
+      if (searchError) {
+        console.error("Error checking for existing member:", searchError);
+        throw new Error(searchError.message);
+      }
+      
+      // Insert new member, using existing ID if available
+      const memberToInsert = {
+        group_id: groupId,
+        email: newMemberEmail.toLowerCase(), // Store emails in lowercase for consistency
+        name: newMemberName.trim() || null
+      };
+      
+      // If member exists in another group, use their existing ID
+      if (existingMemberInOtherGroups && existingMemberInOtherGroups.length > 0) {
+        console.log("Found existing member in other groups:", existingMemberInOtherGroups[0]);
+        // We'll use the existing name if a new one wasn't provided
+        if (!memberToInsert.name && existingMemberInOtherGroups[0].name) {
+          memberToInsert.name = existingMemberInOtherGroups[0].name;
+        }
+      }
+      
+      // Insert the member into the database
       const { data, error } = await supabase
         .from('group_members')
-        .insert([{ 
-          group_id: groupId, 
-          email: newMemberEmail,
-          name: newMemberName.trim() || null
-        }])
+        .insert([memberToInsert])
         .select()
         .single();
       
@@ -68,6 +91,7 @@ export const AddMemberDialog = ({ groupId, groupName, members, onMemberAdded }: 
           throw error;
         }
       } else {
+        console.log("Successfully added member:", data);
         toast.success('המשתמש נוסף לקבוצה בהצלחה');
         onMemberAdded(data);
         setIsOpen(false);
