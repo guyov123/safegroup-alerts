@@ -1,12 +1,16 @@
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { MapPin, Clock, Users, Layers, ZoomIn, ZoomOut, UserCheck, Search } from "lucide-react";
+import { MapPin, Clock, Users, Layers, ZoomIn, ZoomOut, UserCheck, Search, Compass, AlertTriangle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { Geolocation } from '@capacitor/geolocation';
+import mapboxgl from 'mapbox-gl';
+import 'mapbox-gl/dist/mapbox-gl.css';
+import { useMapboxToken } from "@/hooks/useMapboxToken";
 
 interface MapUser {
   id: string;
@@ -18,12 +22,168 @@ interface MapUser {
   image: string;
 }
 
+interface GeolocationPosition {
+  coords: {
+    latitude: number;
+    longitude: number;
+    accuracy?: number;
+  }
+}
+
 const MapView = () => {
   const [selectedUser, setSelectedUser] = useState<MapUser | null>(null);
   const [mapUsers, setMapUsers] = useState<MapUser[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
+  const [currentPosition, setCurrentPosition] = useState<GeolocationPosition | null>(null);
+  const [locationError, setLocationError] = useState<string | null>(null);
+  const [isLocationPermissionGranted, setIsLocationPermissionGranted] = useState(false);
   
+  const mapContainer = useRef<HTMLDivElement>(null);
+  const map = useRef<mapboxgl.Map | null>(null);
+  const userMarker = useRef<mapboxgl.Marker | null>(null);
+  const mapboxToken = useMapboxToken();
+  
+  // Request location permission and get current position
+  useEffect(() => {
+    const requestLocationPermission = async () => {
+      try {
+        // Request permissions
+        const permissionStatus = await Geolocation.requestPermissions();
+        
+        if (permissionStatus.location === 'granted') {
+          setIsLocationPermissionGranted(true);
+          
+          // Get current position
+          const position = await Geolocation.getCurrentPosition({
+            enableHighAccuracy: true,
+            timeout: 30000,
+          });
+          
+          setCurrentPosition(position);
+          toast.success("המיקום נמצא בהצלחה");
+        } else {
+          setLocationError("לא ניתנה הרשאה למיקום");
+          toast.error("לא ניתנה הרשאה למיקום");
+        }
+      } catch (error) {
+        console.error("Error getting location:", error);
+        setLocationError("שגיאה בקבלת המיקום");
+        toast.error("שגיאה בקבלת המיקום");
+      }
+    };
+    
+    requestLocationPermission();
+    
+    // Setup watchPosition to track location changes
+    let watchId: string;
+    
+    const setupWatchPosition = async () => {
+      try {
+        watchId = await Geolocation.watchPosition(
+          { enableHighAccuracy: true, timeout: 30000 },
+          (position) => {
+            setCurrentPosition(position);
+            
+            // Update marker position if map and marker exist
+            if (map.current && userMarker.current && position) {
+              const { latitude, longitude } = position.coords;
+              userMarker.current.setLngLat([longitude, latitude]);
+            }
+          }
+        );
+      } catch (error) {
+        console.error("Error watching position:", error);
+      }
+    };
+    
+    setupWatchPosition();
+    
+    // Cleanup watch position
+    return () => {
+      if (watchId) {
+        Geolocation.clearWatch({ id: watchId });
+      }
+    };
+  }, []);
+  
+  // Initialize map when position is available and token exists
+  useEffect(() => {
+    if (!mapContainer.current || !mapboxToken || map.current) return;
+    
+    // Initialize mapbox map
+    mapboxgl.accessToken = mapboxToken;
+    
+    const initialPosition = currentPosition 
+      ? [currentPosition.coords.longitude, currentPosition.coords.latitude]
+      : [34.855499, 31.046051]; // Default to Israel if location not available
+      
+    const newMap = new mapboxgl.Map({
+      container: mapContainer.current,
+      style: 'mapbox://styles/mapbox/streets-v12',
+      center: initialPosition as [number, number],
+      zoom: currentPosition ? 15 : 8
+    });
+    
+    map.current = newMap;
+    
+    // Add navigation controls
+    newMap.addControl(
+      new mapboxgl.NavigationControl(),
+      'top-left'
+    );
+    
+    // Add scale
+    newMap.addControl(
+      new mapboxgl.ScaleControl(),
+      'bottom-left'
+    );
+    
+    return () => {
+      map.current?.remove();
+      map.current = null;
+    };
+  }, [mapContainer, mapboxToken]);
+  
+  // Add/update user location marker when position changes
+  useEffect(() => {
+    if (!map.current || !currentPosition) return;
+    
+    const { latitude, longitude } = currentPosition.coords;
+    
+    // Create or update user marker
+    if (!userMarker.current) {
+      // Create a custom marker element
+      const markerElement = document.createElement('div');
+      markerElement.className = 'user-location-marker';
+      markerElement.style.width = '20px';
+      markerElement.style.height = '20px';
+      markerElement.style.borderRadius = '50%';
+      markerElement.style.backgroundColor = '#4A66F8';
+      markerElement.style.border = '2px solid white';
+      markerElement.style.boxShadow = '0 0 0 2px rgba(74, 102, 248, 0.3)';
+      
+      // Create the marker
+      userMarker.current = new mapboxgl.Marker({
+        element: markerElement,
+        anchor: 'center'
+      })
+      .setLngLat([longitude, latitude])
+      .addTo(map.current);
+      
+      // Fly to user position
+      map.current.flyTo({
+        center: [longitude, latitude],
+        zoom: 15,
+        essential: true
+      });
+    } else {
+      // Update existing marker position
+      userMarker.current.setLngLat([longitude, latitude]);
+    }
+  }, [currentPosition, map.current]);
+  
+  // Fetch group members
   useEffect(() => {
     const fetchGroupMembers = async () => {
       try {
@@ -94,6 +254,22 @@ const MapView = () => {
     fetchGroupMembers();
   }, []);
   
+  // Pan to user location
+  const handlePanToUserLocation = () => {
+    if (!map.current || !currentPosition) {
+      toast.error("מיקום המשתמש אינו זמין");
+      return;
+    }
+    
+    const { longitude, latitude } = currentPosition.coords;
+    
+    map.current.flyTo({
+      center: [longitude, latitude],
+      zoom: 15,
+      essential: true
+    });
+  };
+  
   // Filter users based on search query
   const filteredUsers = searchQuery 
     ? mapUsers.filter(user => 
@@ -105,27 +281,56 @@ const MapView = () => {
   
   return (
     <div className="h-screen relative">
-      {/* Mock Map - Replace with actual map component */}
-      <div className="absolute inset-0 bg-gray-200 flex items-center justify-center">
-        <div className="text-center text-gray-500">
-          <MapPin className="h-12 w-12 mx-auto mb-2" />
-          <p className="text-lg font-medium">הצגת מפה</p>
-          <p>(מידע המפה יוצג כאן)</p>
-        </div>
-      </div>
+      {/* Real Map Container */}
+      <div 
+        ref={mapContainer} 
+        className="absolute inset-0 bg-gray-200"
+      />
       
       {/* Map Controls */}
       <div className="absolute top-4 left-4 flex flex-col gap-2 z-10">
-        <Button variant="secondary" size="icon" className="shadow-md">
+        <Button 
+          variant="secondary" 
+          size="icon" 
+          className="shadow-md"
+          onClick={() => map.current?.zoomIn()}
+        >
           <ZoomIn className="h-4 w-4" />
         </Button>
-        <Button variant="secondary" size="icon" className="shadow-md">
+        <Button 
+          variant="secondary" 
+          size="icon" 
+          className="shadow-md"
+          onClick={() => map.current?.zoomOut()}
+        >
           <ZoomOut className="h-4 w-4" />
         </Button>
-        <Button variant="secondary" size="icon" className="shadow-md">
+        <Button 
+          variant="secondary" 
+          size="icon" 
+          className="shadow-md"
+          onClick={handlePanToUserLocation}
+        >
+          <Compass className="h-4 w-4" />
+        </Button>
+        <Button 
+          variant="secondary" 
+          size="icon" 
+          className="shadow-md"
+        >
           <Layers className="h-4 w-4" />
         </Button>
       </div>
+      
+      {/* Location Error Message */}
+      {locationError && (
+        <div className="absolute top-4 left-1/2 transform -translate-x-1/2 z-20">
+          <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-2 rounded flex items-center gap-2 shadow-md">
+            <AlertTriangle className="h-4 w-4" />
+            <span>{locationError}</span>
+          </div>
+        </div>
+      )}
       
       {/* User Card - Shows when user is selected */}
       {selectedUser && (
