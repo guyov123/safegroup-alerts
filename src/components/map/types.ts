@@ -2,6 +2,7 @@
 export interface MapUser {
   id: string;
   name: string;
+  email?: string;  // Added email field to help debug issues
   status: "safe" | "unknown";
   time?: string;
   location?: string;
@@ -17,14 +18,13 @@ export interface GeolocationPosition {
   coords: {
     latitude: number;
     longitude: number;
-    accuracy: number; // Changed from optional to required
+    accuracy: number;
     altitude: number | null;
     altitudeAccuracy: number | null;
     heading: number | null;
     speed: number | null;
-    toJSON: () => any; // Changed from optional to required
+    toJSON: () => any;
   };
   timestamp: number;
-  toJSON: () => any; // Changed from optional to required
+  toJSON: () => any;
 }
-

@@ -37,7 +37,6 @@ export function useMapUsers(
   const previousPositionRef = useRef<{ latitude: number, longitude: number } | null>(null);
   const realtimeChannelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
   const lastUpdateToast = useRef<string | null>(null);
-  const notifiedRealtimeRef = useRef<boolean>(false);
   
   // Check if position has changed significantly
   const hasPositionChanged = (currentPos?: { latitude: number, longitude: number } | null): boolean => {
@@ -177,12 +176,11 @@ export function useMapUsers(
         const memberIds = members.map(member => member.id);
         console.log("Fetching safety statuses for member IDs:", memberIds);
         
-        // Important fix: Get ALL safety statuses without filtering by member_id first
+        // IMPORTANT: Get ALL safety statuses without filtering by member_id first
         const { data: allSafetyStatuses, error: safetyError } = await supabase
           .from('member_safety_status')
           .select('*')
-          .in('member_id', memberIds)
-          .order('reported_at', { ascending: false });
+          .in('member_id', memberIds);
           
         if (safetyError) {
           console.error("Error fetching safety statuses:", safetyError);
@@ -196,9 +194,16 @@ export function useMapUsers(
         
         console.log("Safety statuses found:", allSafetyStatuses?.length || 0);
         
-        // Get the latest status for each member
+        // Get the latest status for each member by sorting by reported_at and taking first by member_id
         const latestStatusByMember = allSafetyStatuses ? 
           allSafetyStatuses.reduce((acc, status) => {
+            // Debugging to find mrshapron@gmail.com
+            members.forEach(member => {
+              if (member.email === 'mrshapron@gmail.com' && status.member_id === member.id) {
+                console.log("Found status for Sharon:", status);
+              }
+            });
+            
             if (!acc[status.member_id] || new Date(status.reported_at) > new Date(acc[status.member_id].reported_at)) {
               acc[status.member_id] = status;
             }
@@ -210,6 +215,13 @@ export function useMapUsers(
         // Transform the data to match the MapUser interface
         const formattedMembers = members.map(member => {
           const latestStatus = latestStatusByMember[member.id];
+          
+          // Debug information for mrshapron@gmail.com
+          if (member.email === 'mrshapron@gmail.com') {
+            console.log("Formatting member Sharon:", member);
+            console.log("Latest status for Sharon:", latestStatus);
+          }
+          
           let distance: number | undefined = undefined;
           
           // Calculate distance if both positions are available
@@ -295,12 +307,15 @@ export function useMapUsers(
         (payload) => {
           console.log("Safety status update received via realtime:", payload);
           const { new: updatedStatus } = payload;
+          
           if (isMounted.current) {
-            // Ensure we don't show too many notifications by debouncing
-            const memberId = updatedStatus.member_id.substring(0, 8);
-            const now = Date.now();
+            // Find the member this update is for
+            const updatedMemberId = updatedStatus.member_id;
             
             // Only show update toast if we haven't shown one for this member in the last 5 seconds
+            const now = Date.now();
+            const memberId = updatedMemberId.substring(0, 8);
+            
             if (!lastUpdateToast.current || now - parseInt(lastUpdateToast.current.split('-')[1] || '0') > 5000) {
               toast.success("עדכון סטטוס חדש התקבל", {
                 description: `עדכון מהמשתמש ID: ${memberId}...`,
@@ -309,49 +324,64 @@ export function useMapUsers(
               lastUpdateToast.current = `${memberId}-${now}`;
             }
             
-            // Don't refetch everything, just update the specific user status
+            // Find the member in our existing list
             setMapUsers(prevUsers => {
-              const updatedUsers = prevUsers.map(user => {
-                if (user.id === updatedStatus.member_id) {
-                  // Calculate distance if both positions are available
-                  let distance = user.distance;
-                  if (updatedStatus.latitude && updatedStatus.longitude && currentPosition?.latitude && currentPosition?.longitude) {
-                    distance = calculateDistance(
-                      currentPosition.latitude,
-                      currentPosition.longitude,
-                      updatedStatus.latitude,
-                      updatedStatus.longitude
-                    );
-                    distance = Number(distance.toFixed(2));
-                  }
-                  
-                  const formattedTime = formatDistanceToNow(new Date(updatedStatus.reported_at), { addSuffix: true, locale: he });
-                  
-                  console.log(`Updating user ${user.name} with new status:`, {
-                    status: updatedStatus.status,
-                    time: formattedTime,
-                    lastReported: updatedStatus.reported_at,
-                    latitude: updatedStatus.latitude,
-                    longitude: updatedStatus.longitude,
-                    distance
-                  });
-                  
-                  return {
-                    ...user,
-                    status: updatedStatus.status as "safe" | "unknown",
-                    time: formattedTime,
-                    lastReported: updatedStatus.reported_at,
-                    latitude: updatedStatus.latitude,
-                    longitude: updatedStatus.longitude,
-                    location: updatedStatus.latitude && updatedStatus.longitude ?
-                      `${updatedStatus.latitude.toFixed(5)}, ${updatedStatus.longitude.toFixed(5)}` : "",
-                    distance
-                  };
-                }
-                return user;
+              // Find the user this update is for
+              const userIndex = prevUsers.findIndex(user => user.id === updatedMemberId);
+              
+              if (userIndex === -1) {
+                console.log(`User with ID ${updatedMemberId} not found in current list`);
+                // If this is a new user, we should refetch all data
+                setTimeout(() => {
+                  setFetchAttempts(prev => prev + 1);
+                }, 500);
+                return prevUsers;
+              }
+              
+              // Calculate distance if both positions are available
+              let distance = prevUsers[userIndex].distance;
+              if (updatedStatus.latitude && updatedStatus.longitude && currentPosition?.latitude && currentPosition?.longitude) {
+                distance = calculateDistance(
+                  currentPosition.latitude,
+                  currentPosition.longitude,
+                  updatedStatus.latitude,
+                  updatedStatus.longitude
+                );
+                distance = Number(distance.toFixed(2));
+              }
+              
+              const formattedTime = formatDistanceToNow(new Date(updatedStatus.reported_at), { addSuffix: true, locale: he });
+              
+              // Deep debug for Sharon's updates
+              if (prevUsers[userIndex].email === 'mrshapron@gmail.com' || prevUsers[userIndex].name.includes('שרון')) {
+                console.log("Realtime update for Sharon:", {
+                  before: prevUsers[userIndex],
+                  newStatus: updatedStatus
+                });
+              }
+              
+              console.log(`Updating user ${prevUsers[userIndex].name} with new status:`, {
+                status: updatedStatus.status,
+                time: formattedTime,
+                lastReported: updatedStatus.reported_at,
+                latitude: updatedStatus.latitude,
+                longitude: updatedStatus.longitude,
+                distance
               });
               
-              console.log("Updated users after realtime update:", updatedUsers.length);
+              const updatedUsers = [...prevUsers];
+              updatedUsers[userIndex] = {
+                ...updatedUsers[userIndex],
+                status: updatedStatus.status as "safe" | "unknown",
+                time: formattedTime,
+                lastReported: updatedStatus.reported_at,
+                latitude: updatedStatus.latitude,
+                longitude: updatedStatus.longitude,
+                location: updatedStatus.latitude && updatedStatus.longitude ?
+                  `${updatedStatus.latitude.toFixed(5)}, ${updatedStatus.longitude.toFixed(5)}` : "",
+                distance
+              };
+              
               return updatedUsers;
             });
           }

@@ -62,6 +62,12 @@ const UsersList = ({ users, isLoading, onSelectUser }: UsersListProps) => {
 
   // Filter users based on search and display type
   const filteredUsers = users.filter(user => {
+    // Debug log for Sharon
+    if (user.name.includes('שרון') || user.name.toLowerCase().includes('sharon') || 
+        (user.email && user.email.includes('mrshapron@gmail.com'))) {
+      console.log("Sharon's data in UsersList:", user);
+    }
+    
     const matchesSearch = !searchQuery || 
       user.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
       user.group.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -94,6 +100,19 @@ const UsersList = ({ users, isLoading, onSelectUser }: UsersListProps) => {
   });
 
   const hasAnyUsersWithLocation = users.some(user => user.latitude && user.longitude);
+  
+  // Debug info for Sharon
+  useEffect(() => {
+    const sharonUser = users.find(user => 
+      user.name.includes('שרון') || 
+      user.name.toLowerCase().includes('sharon') || 
+      (user.email && user.email.includes('mrshapron@gmail.com'))
+    );
+    
+    if (sharonUser) {
+      console.log("Sharon found in users list:", sharonUser);
+    }
+  }, [users]);
   
   return (
     <div className="absolute top-4 right-4 z-10 w-80 bg-white rounded-md shadow-md">
@@ -229,6 +248,6 @@ const UsersList = ({ users, isLoading, onSelectUser }: UsersListProps) => {
       </div>
     </div>
   );
-};
+}
 
 export default UsersList;
