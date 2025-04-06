@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -7,6 +6,12 @@ import { Button } from "@/components/ui/button";
 import { MapPin, Clock, Users, Layers, ZoomIn, ZoomOut, UserCheck, Search } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import Map from "@/components/Map";
+import { Database } from "@/types/database.types";
+
+type GroupMember = Database['public']['Tables']['group_members']['Row'] & {
+  groups: { name: string };
+};
 
 interface MapUser {
   id: string;
@@ -14,6 +19,7 @@ interface MapUser {
   status: "safe" | "unknown";
   time?: string;
   location?: string;
+  coordinates?: [number, number];
   group: string;
   image: string;
 }
@@ -23,6 +29,8 @@ const MapView = () => {
   const [mapUsers, setMapUsers] = useState<MapUser[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
+  const [mapCenter, setMapCenter] = useState<[number, number]>([34.8516, 31.0461]); // Israel center
+  const [mapZoom, setMapZoom] = useState(7);
   
   useEffect(() => {
     const fetchGroupMembers = async () => {
@@ -72,12 +80,13 @@ const MapView = () => {
         }
         
         // Transform the data to match the MapUser interface
-        const formattedMembers = members.map(member => ({
+        const formattedMembers = members.map((member: GroupMember) => ({
           id: member.id,
           name: member.name || member.email,
-          status: "safe" as "safe" | "unknown",
-          time: "",
-          location: "",
+          status: member.status || "unknown",
+          time: member.last_update || "",
+          location: member.coordinates ? `${member.coordinates[1]}, ${member.coordinates[0]}` : "",
+          coordinates: member.coordinates || undefined,
           group: member.groups.name,
           image: ""
         }));
@@ -102,24 +111,45 @@ const MapView = () => {
         (user.location && user.location.includes(searchQuery))
       )
     : mapUsers;
+
+  const handleZoomIn = () => {
+    setMapZoom(prev => Math.min(prev + 1, 20));
+  };
+
+  const handleZoomOut = () => {
+    setMapZoom(prev => Math.max(prev - 1, 0));
+  };
+
+  const handleUserClick = (user: MapUser) => {
+    setSelectedUser(user);
+    if (user.coordinates) {
+      setMapCenter(user.coordinates);
+      setMapZoom(15);
+    }
+  };
   
   return (
     <div className="h-screen relative">
-      {/* Mock Map - Replace with actual map component */}
-      <div className="absolute inset-0 bg-gray-200 flex items-center justify-center">
-        <div className="text-center text-gray-500">
-          <MapPin className="h-12 w-12 mx-auto mb-2" />
-          <p className="text-lg font-medium">הצגת מפה</p>
-          <p>(מידע המפה יוצג כאן)</p>
-        </div>
-      </div>
+      {/* Real Map Component */}
+      <Map
+        center={mapCenter}
+        zoom={mapZoom}
+        markers={mapUsers
+          .filter(user => user.coordinates)
+          .map(user => ({
+            id: user.id,
+            coordinates: user.coordinates!,
+            color: user.status === "safe" ? "#10B981" : "#F59E0B",
+            onClick: () => handleUserClick(user)
+          }))}
+      />
       
       {/* Map Controls */}
       <div className="absolute top-4 left-4 flex flex-col gap-2 z-10">
-        <Button variant="secondary" size="icon" className="shadow-md">
+        <Button variant="secondary" size="icon" className="shadow-md" onClick={handleZoomIn}>
           <ZoomIn className="h-4 w-4" />
         </Button>
-        <Button variant="secondary" size="icon" className="shadow-md">
+        <Button variant="secondary" size="icon" className="shadow-md" onClick={handleZoomOut}>
           <ZoomOut className="h-4 w-4" />
         </Button>
         <Button variant="secondary" size="icon" className="shadow-md">
@@ -211,7 +241,7 @@ const MapView = () => {
               <div 
                 key={user.id} 
                 className="p-2 hover:bg-accent rounded-md cursor-pointer transition-colors"
-                onClick={() => setSelectedUser(user)}
+                onClick={() => handleUserClick(user)}
               >
                 <div className="flex items-center justify-between">
                   <Badge 

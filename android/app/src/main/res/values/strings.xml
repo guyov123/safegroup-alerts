@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">safegroup-alerts</string>
+    <string name="title_activity_main">safegroup-alerts</string>
+    <string name="package_name">app.lovable.d1194a390e7b4684ab9d7a0ca4289d00</string>
+    <string name="custom_url_scheme">app.lovable.d1194a390e7b4684ab9d7a0ca4289d00</string>
+</resources>

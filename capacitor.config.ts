@@ -6,7 +6,7 @@ const config: CapacitorConfig = {
   appName: 'safegroup-alerts',
   webDir: 'dist',
   server: {
-    url: 'https://d1194a39-0e7b-4684-ab9d-7a0ca4289d00.lovableproject.com?forceHideBadge=true',
+    url: 'https://safegroup-alerts.lovable.app/',
     cleartext: true
   },
   ios: {
