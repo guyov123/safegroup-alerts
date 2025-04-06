@@ -24,7 +24,10 @@ const calculateDistance = (
   return R * c; // Distance in km
 };
 
-export function useMapUsers(currentPosition?: { latitude: number, longitude: number } | null) {
+export function useMapUsers(
+  currentPosition?: { latitude: number, longitude: number } | null,
+  onRealtimeStatusChange?: (status: string) => void
+) {
   const [mapUsers, setMapUsers] = useState<MapUser[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -33,6 +36,7 @@ export function useMapUsers(currentPosition?: { latitude: number, longitude: num
   const fetchTimeoutRef = useRef<number | null>(null);
   const previousPositionRef = useRef<{ latitude: number, longitude: number } | null>(null);
   const realtimeChannelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
+  const notifiedRealtimeRef = useRef<boolean>(false);
   
   // Check if position has changed significantly
   const hasPositionChanged = (currentPos?: { latitude: number, longitude: number } | null): boolean => {
@@ -56,6 +60,7 @@ export function useMapUsers(currentPosition?: { latitude: number, longitude: num
     
     // Update the reference to track component mount status
     isMounted.current = true;
+    notifiedRealtimeRef.current = false;
     
     // Only refetch if position has changed significantly or it's the first fetch
     if (!hasPositionChanged(currentPosition) && mapUsers.length > 0 && fetchAttempts > 0) {
@@ -347,15 +352,34 @@ export function useMapUsers(currentPosition?: { latitude: number, longitude: num
       .subscribe((status) => {
         console.log("Realtime subscription status:", status);
         
+        // Notify about realtime status, but only once per connection cycle
         if (status === 'SUBSCRIBED') {
           console.log("✅ Successfully subscribed to realtime updates");
-          toast.success("מחובר לעדכונים בזמן אמת");
+          if (!notifiedRealtimeRef.current) {
+            notifiedRealtimeRef.current = true;
+            toast.success("מחובר לעדכונים בזמן אמת", { id: "realtime-connected" });
+          }
+          
+          // Callback to parent component for connection status
+          if (onRealtimeStatusChange) {
+            onRealtimeStatusChange(status);
+          }
         } else if (status === 'CHANNEL_ERROR') {
           console.error("❌ Error subscribing to realtime updates");
-          toast.error("שגיאה בחיבור לעדכונים בזמן אמת");
+          toast.error("שגיאה בחיבור לעדכונים בזמן אמת", { id: "realtime-error" });
+          
+          if (onRealtimeStatusChange) {
+            onRealtimeStatusChange(status);
+          }
         } else if (status === 'TIMED_OUT') {
           console.error("⏱️ Realtime subscription timed out");
-          toast.error("פסק זמן בחיבור לעדכונים בזמן אמת");
+          toast.error("פסק זמן בחיבור לעדכונים בזמן אמת", { id: "realtime-timeout" });
+          
+          if (onRealtimeStatusChange) {
+            onRealtimeStatusChange(status);
+          }
+        } else if (onRealtimeStatusChange) {
+          onRealtimeStatusChange(status);
         }
       });
     
@@ -377,7 +401,7 @@ export function useMapUsers(currentPosition?: { latitude: number, longitude: num
         realtimeChannelRef.current = null;
       }
     };
-  }, [currentPosition, fetchAttempts]);
+  }, [currentPosition, fetchAttempts, onRealtimeStatusChange]);
 
   return { mapUsers, isLoading, error };
 }

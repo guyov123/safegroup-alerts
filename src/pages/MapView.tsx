@@ -18,6 +18,7 @@ const MapView = () => {
   const [mapInstance, setMapInstance] = useState<mapboxgl.Map | null>(null);
   const [membersMarkers, setMembersMarkers] = useState<{[key: string]: mapboxgl.Marker}>({});
   const markerUpdateTimeRef = useRef<number>(0);
+  const [realtimeIndicator, setRealtimeIndicator] = useState<"connected" | "disconnected" | "connecting">("connecting");
   
   // Custom hooks
   const { currentPosition, locationError } = useLocation();
@@ -26,7 +27,14 @@ const MapView = () => {
     { 
       latitude: currentPosition.coords.latitude, 
       longitude: currentPosition.coords.longitude 
-    } : null
+    } : null,
+    (status) => {
+      if (status === 'SUBSCRIBED') {
+        setRealtimeIndicator("connected");
+      } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+        setRealtimeIndicator("disconnected");
+      }
+    }
   );
 
   const mapboxToken = useMapboxToken();
@@ -39,29 +47,6 @@ const MapView = () => {
       console.log(`Users with location data: ${usersWithLocation} of ${mapUsers.length}`);
     }
   }, [mapUsers]);
-  
-  // Test realtime connection by showing status on the UI
-  useEffect(() => {
-    // Check if Supabase realtime is connected by subscribing to a test channel
-    const testChannel = supabase.channel('connection_test');
-    const startTime = Date.now();
-    
-    testChannel
-      .subscribe((status) => {
-        const elapsed = Date.now() - startTime;
-        console.log(`Realtime test connection status: ${status} (after ${elapsed}ms)`);
-        
-        if (status === 'SUBSCRIBED') {
-          console.log(`✅ Realtime connection test successful in ${elapsed}ms`);
-        } else if (status === 'CHANNEL_ERROR') {
-          console.error("❌ Error in realtime test connection");
-        }
-      });
-      
-    return () => {
-      supabase.removeChannel(testChannel);
-    };
-  }, []);
   
   // Add/update member markers on the map - with debouncing
   useEffect(() => {
@@ -203,39 +188,6 @@ const MapView = () => {
     }
   }, [error]);
   
-  // Function to manually test realtime by publishing an event
-  const testRealtime = async () => {
-    try {
-      toast.info("בדיקת תקשורת בזמן אמת...");
-      const userId = 'test-' + Date.now();
-      
-      const testChannel = supabase.channel('test_publish');
-      await testChannel.subscribe((status) => {
-        console.log("Test publication channel status:", status);
-        
-        if (status === 'SUBSCRIBED') {
-          // Channel is ready, send a broadcast message
-          testChannel.send({
-            type: 'broadcast',
-            event: 'test',
-            payload: { message: 'Hello from client', timestamp: new Date().toISOString() }
-          });
-          
-          console.log("Sent test broadcast message");
-          toast.success("נשלחה הודעת בדיקה");
-        }
-      });
-      
-      // Clean up after 5 seconds
-      setTimeout(() => {
-        supabase.removeChannel(testChannel);
-      }, 5000);
-    } catch (e) {
-      console.error("Error testing realtime:", e);
-      toast.error("שגיאה בבדיקת תקשורת בזמן אמת");
-    }
-  };
-  
   return (
     <div className="h-screen relative">
       <MapComponent 
@@ -265,13 +217,25 @@ const MapView = () => {
         }}
       />
       
-      {/* Realtime test button */}
-      <button
-        onClick={testRealtime}
-        className="absolute top-4 left-4 z-10 bg-white rounded-md shadow-md px-3 py-2 text-sm font-medium"
-      >
-        בדיקת Realtime
-      </button>
+      {/* Realtime connection status indicator */}
+      <div className="absolute top-4 left-4 z-10 bg-white rounded-md shadow-md px-3 py-2 text-sm font-medium flex items-center gap-2">
+        <div 
+          className={`w-3 h-3 rounded-full ${
+            realtimeIndicator === "connected" 
+              ? "bg-green-500" 
+              : realtimeIndicator === "connecting" 
+                ? "bg-amber-500" 
+                : "bg-red-500"
+          }`}
+        />
+        <span>
+          {realtimeIndicator === "connected" 
+            ? "מחובר לעדכונים" 
+            : realtimeIndicator === "connecting" 
+              ? "מתחבר..." 
+              : "מנותק"}
+        </span>
+      </div>
     </div>
   );
 
