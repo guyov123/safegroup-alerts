@@ -13,6 +13,7 @@ export interface MapUser {
   distance?: number;
   lastReported?: string;
   phoneNumber?: string; // Added phone number for SMS messaging
+  authId?: string;  // Added to track the auth.users.id connection
 }
 
 export interface GeolocationPosition {

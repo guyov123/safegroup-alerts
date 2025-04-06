@@ -173,10 +173,12 @@ export function useMapUsers(
         }
         
         // Enhanced logging for debugging member data
-        console.log("Group members details:", members.map(m => ({ id: m.id, email: m.email, name: m.name })));
-        
-        // Fetch registered users that match group member emails
-        const memberEmails = members.map(member => member.email.toLowerCase());
+        console.log("Group members details:", members.map(m => ({ 
+          id: m.id, 
+          email: m.email, 
+          name: m.name,
+          authId: m.auth_id 
+        })));
         
         // Create a map of email to auth user IDs
         const emailToAuthUserMap = new Map<string, string>();
@@ -266,13 +268,14 @@ export function useMapUsers(
               `${latestStatus.latitude.toFixed(5)}, ${latestStatus.longitude.toFixed(5)}` : "",
             group: member.groups.name,
             image: "",
-            distance: distance ? Number(distance.toFixed(2)) : undefined
+            distance: distance ? Number(distance.toFixed(2)) : undefined,
+            authId: member.auth_id // Add the auth_id reference for debugging and future use
           };
         });
         
         console.log("Formatted members:", formattedMembers.length);
         console.log("Formatted members data:", formattedMembers.map(m => 
-          ({ id: m.id, name: m.name, email: m.email, status: m.status, hasLocation: Boolean(m.latitude && m.longitude) })));
+          ({ id: m.id, name: m.name, email: m.email, status: m.status, hasLocation: Boolean(m.latitude && m.longitude), authId: m.authId })));
         
         if (isMounted.current) {
           setMapUsers(formattedMembers);

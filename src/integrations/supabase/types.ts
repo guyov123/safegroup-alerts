@@ -11,6 +11,7 @@ export type Database = {
     Tables: {
       group_members: {
         Row: {
+          auth_id: string | null
           created_at: string
           email: string
           group_id: string
@@ -18,6 +19,7 @@ export type Database = {
           name: string | null
         }
         Insert: {
+          auth_id?: string | null
           created_at?: string
           email: string
           group_id: string
@@ -25,6 +27,7 @@ export type Database = {
           name?: string | null
         }
         Update: {
+          auth_id?: string | null
           created_at?: string
           email?: string
           group_id?: string
@@ -102,7 +105,12 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      get_member_id_by_auth_user: {
+        Args: {
+          auth_user_id: string
+        }
+        Returns: string
+      }
     }
     Enums: {
       [_ in never]: never

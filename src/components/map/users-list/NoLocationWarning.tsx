@@ -23,6 +23,7 @@ const NoLocationWarning = () => {
             <li>להיות מוזמן לקבוצה עם <span className="font-semibold">אותה כתובת אימייל</span> שאיתה נרשם למערכת</li>
             <li>לדווח סטטוס "אני בטוח" עם מיקום</li>
           </ol>
+          <p className="mt-1 text-xs">המערכת תזהה אוטומטית את הקשר בין המשתמש לחבר הקבוצה</p>
         </div>
       </div>
     </div>
