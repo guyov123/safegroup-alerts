@@ -172,11 +172,19 @@ export function useMapUsers(
           return;
         }
         
+        // Enhanced logging for debugging member data
+        console.log("Group members details:", members.map(m => ({ id: m.id, email: m.email, name: m.name })));
+        
+        // Fetch registered users that match group member emails
+        const memberEmails = members.map(member => member.email.toLowerCase());
+        
+        // Create a map of email to auth user IDs
+        const emailToAuthUserMap = new Map<string, string>();
+        
         // Fetch the latest safety status for each member
         const memberIds = members.map(member => member.id);
         console.log("Fetching safety statuses for member IDs:", memberIds);
         
-        // IMPORTANT: Get ALL safety statuses without filtering by member_id first
         const { data: allSafetyStatuses, error: safetyError } = await supabase
           .from('member_safety_status')
           .select('*')
@@ -194,15 +202,22 @@ export function useMapUsers(
         
         console.log("Safety statuses found:", allSafetyStatuses?.length || 0);
         
+        // Dump all safety statuses for debugging
+        console.log("All safety statuses by member:", allSafetyStatuses);
+        
         // Get the latest status for each member by sorting by reported_at and taking first by member_id
         const latestStatusByMember = allSafetyStatuses ? 
           allSafetyStatuses.reduce((acc, status) => {
-            // Debugging to find mrshapron@gmail.com
-            members.forEach(member => {
-              if (member.email === 'mrshapron@gmail.com' && status.member_id === member.id) {
-                console.log("Found status for Sharon:", status);
+            // Debug log for specific email
+            const relatedMember = members.find(m => m.id === status.member_id);
+            if (relatedMember) {
+              console.log(`Found status for ${relatedMember.email}:`, status);
+                
+              // Special debug for Sharon
+              if (relatedMember.email.toLowerCase() === 'mrshapron@gmail.com') {
+                console.log("Found status record for Sharon:", status);
               }
-            });
+            }
             
             if (!acc[status.member_id] || new Date(status.reported_at) > new Date(acc[status.member_id].reported_at)) {
               acc[status.member_id] = status;
@@ -217,9 +232,9 @@ export function useMapUsers(
           const latestStatus = latestStatusByMember[member.id];
           
           // Debug information for mrshapron@gmail.com
-          if (member.email === 'mrshapron@gmail.com') {
+          if (member.email.toLowerCase() === 'mrshapron@gmail.com') {
             console.log("Formatting member Sharon:", member);
-            console.log("Latest status for Sharon:", latestStatus);
+            console.log("Latest status for Sharon:", latestStatus || "No status found");
           }
           
           let distance: number | undefined = undefined;
@@ -241,6 +256,7 @@ export function useMapUsers(
           return {
             id: member.id,
             name: member.name || member.email,
+            email: member.email,  // Add email to the returned object for debugging
             status: latestStatus?.status || "unknown" as "safe" | "unknown",
             time: formattedTime,
             lastReported: latestStatus?.reported_at,
@@ -255,6 +271,8 @@ export function useMapUsers(
         });
         
         console.log("Formatted members:", formattedMembers.length);
+        console.log("Formatted members data:", formattedMembers.map(m => 
+          ({ id: m.id, name: m.name, email: m.email, status: m.status, hasLocation: Boolean(m.latitude && m.longitude) })));
         
         if (isMounted.current) {
           setMapUsers(formattedMembers);
@@ -353,7 +371,7 @@ export function useMapUsers(
               const formattedTime = formatDistanceToNow(new Date(updatedStatus.reported_at), { addSuffix: true, locale: he });
               
               // Deep debug for Sharon's updates
-              if (prevUsers[userIndex].email === 'mrshapron@gmail.com' || prevUsers[userIndex].name.includes('שרון')) {
+              if (prevUsers[userIndex].email?.toLowerCase() === 'mrshapron@gmail.com' || prevUsers[userIndex].name.includes('שרון')) {
                 console.log("Realtime update for Sharon:", {
                   before: prevUsers[userIndex],
                   newStatus: updatedStatus

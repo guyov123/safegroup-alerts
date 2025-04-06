@@ -64,14 +64,15 @@ const UsersList = ({ users, isLoading, onSelectUser }: UsersListProps) => {
   const filteredUsers = users.filter(user => {
     // Debug log for Sharon
     if (user.name.includes('שרון') || user.name.toLowerCase().includes('sharon') || 
-        (user.email && user.email.includes('mrshapron@gmail.com'))) {
+        (user.email && user.email.toLowerCase().includes('mrshapron@gmail.com'))) {
       console.log("Sharon's data in UsersList:", user);
     }
     
     const matchesSearch = !searchQuery || 
       user.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
       user.group.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (user.location && user.location.toLowerCase().includes(searchQuery.toLowerCase()));
+      (user.location && user.location.toLowerCase().includes(searchQuery.toLowerCase())) ||
+      (user.email && user.email.toLowerCase().includes(searchQuery.toLowerCase()));
     
     return matchesSearch && (displayType === "all" || (displayType === "withLocation" && Boolean(user.latitude && user.longitude)));
   });
@@ -101,17 +102,21 @@ const UsersList = ({ users, isLoading, onSelectUser }: UsersListProps) => {
 
   const hasAnyUsersWithLocation = users.some(user => user.latitude && user.longitude);
   
-  // Debug info for Sharon
+  // Debug info for specific users
   useEffect(() => {
     const sharonUser = users.find(user => 
       user.name.includes('שרון') || 
       user.name.toLowerCase().includes('sharon') || 
-      (user.email && user.email.includes('mrshapron@gmail.com'))
+      (user.email && user.email.toLowerCase().includes('mrshapron@gmail.com'))
     );
     
     if (sharonUser) {
       console.log("Sharon found in users list:", sharonUser);
     }
+    
+    // Log all emails for debugging
+    const userEmails = users.map(u => u.email).filter(Boolean);
+    console.log("All user emails in list:", userEmails);
   }, [users]);
   
   return (
@@ -122,7 +127,7 @@ const UsersList = ({ users, isLoading, onSelectUser }: UsersListProps) => {
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <input
             type="text"
-            placeholder="חיפוש לפי שם..."
+            placeholder="חיפוש לפי שם או אימייל..."
             className="w-full rounded-md border border-input px-3 py-1 text-sm bg-background pl-10 text-right"
             dir="rtl"
             value={searchQuery}
@@ -199,6 +204,11 @@ const UsersList = ({ users, isLoading, onSelectUser }: UsersListProps) => {
                         <span>{user.group}</span>
                         <Users className="h-3 w-3" />
                       </div>
+                      {user.email && (
+                        <div className="text-xs text-gray-400 text-right">
+                          {user.email}
+                        </div>
+                      )}
                     </div>
                     <Avatar className="h-8 w-8">
                       <AvatarImage src={user.image} alt={user.name} />
