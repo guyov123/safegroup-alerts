@@ -27,12 +27,14 @@ const calculateDistance = (
 export function useMapUsers(currentPosition?: { latitude: number, longitude: number } | null) {
   const [mapUsers, setMapUsers] = useState<MapUser[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   
   // Fetch group members and set up realtime subscription
   useEffect(() => {
     const fetchGroupMembers = async () => {
       try {
         setIsLoading(true);
+        setError(null);
         
         // Check if user is authenticated
         const { data: { user } } = await supabase.auth.getUser();
@@ -40,6 +42,7 @@ export function useMapUsers(currentPosition?: { latitude: number, longitude: num
         if (!user) {
           console.log("User not authenticated");
           setIsLoading(false);
+          setError("משתמש לא מחובר");
           return;
         }
         
@@ -55,6 +58,7 @@ export function useMapUsers(currentPosition?: { latitude: number, longitude: num
           console.error("Error fetching groups:", groupsError);
           toast.error("שגיאה בטעינת הקבוצות");
           setIsLoading(false);
+          setError("שגיאה בטעינת הקבוצות");
           return;
         }
         
@@ -79,10 +83,17 @@ export function useMapUsers(currentPosition?: { latitude: number, longitude: num
           console.error("Error fetching group members:", membersError);
           toast.error("שגיאה בטעינת חברי הקבוצה");
           setIsLoading(false);
+          setError("שגיאה בטעינת חברי הקבוצה");
           return;
         }
         
         console.log("Group members found:", members?.length || 0);
+        
+        if (!members || members.length === 0) {
+          setMapUsers([]);
+          setIsLoading(false);
+          return;
+        }
         
         // Fetch the latest safety status for each member
         const memberIds = members.map(member => member.id);
@@ -98,6 +109,7 @@ export function useMapUsers(currentPosition?: { latitude: number, longitude: num
           console.error("Error fetching safety statuses:", safetyError);
           toast.error("שגיאה בטעינת נתוני בטיחות");
           setIsLoading(false);
+          setError("שגיאה בטעינת נתוני בטיחות");
           return;
         }
         
@@ -127,6 +139,7 @@ export function useMapUsers(currentPosition?: { latitude: number, longitude: num
               latestStatus.latitude,
               latestStatus.longitude
             );
+            console.log(`Distance calculated for ${member.name}: ${distance} km`);
           }
           
           const formattedTime = latestStatus ? 
@@ -153,10 +166,11 @@ export function useMapUsers(currentPosition?: { latitude: number, longitude: num
         });
         
         setMapUsers(formattedMembers);
-        setIsLoading(false);
       } catch (error) {
         console.error("Error:", error);
         toast.error("שגיאה בטעינת הנתונים");
+        setError("שגיאה בטעינת הנתונים");
+      } finally {
         setIsLoading(false);
       }
     };
@@ -189,5 +203,5 @@ export function useMapUsers(currentPosition?: { latitude: number, longitude: num
     };
   }, [currentPosition]);
 
-  return { mapUsers, isLoading };
+  return { mapUsers, isLoading, error };
 }

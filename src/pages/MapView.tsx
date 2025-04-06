@@ -19,7 +19,7 @@ const MapView = () => {
   
   // Custom hooks
   const { currentPosition, locationError } = useLocation();
-  const { mapUsers, isLoading } = useMapUsers(
+  const { mapUsers, isLoading, error } = useMapUsers(
     currentPosition ? 
     { 
       latitude: currentPosition.coords.latitude, 
@@ -44,7 +44,11 @@ const MapView = () => {
     } else {
       console.log("No map users loaded or empty array");
     }
-  }, [mapUsers]);
+    
+    if (error) {
+      console.log("Error loading map users:", error);
+    }
+  }, [mapUsers, error]);
   
   // Add/update member markers on the map
   useEffect(() => {
@@ -178,6 +182,13 @@ const MapView = () => {
       });
     }
   };
+  
+  // If we have data loading errors, show them
+  useEffect(() => {
+    if (error) {
+      toast.error(`שגיאה בטעינת הנתונים: ${error}`);
+    }
+  }, [error]);
   
   return (
     <div className="h-screen relative">

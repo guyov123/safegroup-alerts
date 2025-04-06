@@ -2,8 +2,10 @@
 import React, { useState } from 'react';
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Search, Users, Clock, Navigation, MapPin } from "lucide-react";
+import { Search, Users, Clock, Navigation, MapPin, Loader2 } from "lucide-react";
 import { MapUser } from "./types";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Progress } from "@/components/ui/progress";
 
 interface UsersListProps {
   users: MapUser[];
@@ -14,7 +16,7 @@ interface UsersListProps {
 const UsersList = ({ users, isLoading, onSelectUser }: UsersListProps) => {
   const [searchQuery, setSearchQuery] = useState("");
   
-  console.log("UsersList rendered with", users.length, "users");
+  console.log("UsersList rendered with", users.length, "users", isLoading ? "(loading)" : "");
 
   // Filter users based on search query
   const filteredUsers = searchQuery 
@@ -63,8 +65,17 @@ const UsersList = ({ users, isLoading, onSelectUser }: UsersListProps) => {
       </div>
       <div className="max-h-80 overflow-y-auto p-2">
         {isLoading ? (
-          <div className="p-4 text-center">
-            <p className="text-muted-foreground">טוען נתונים...</p>
+          <div className="p-4 space-y-3">
+            <div className="flex items-center justify-center mb-2">
+              <Loader2 className="h-5 w-5 text-primary animate-spin mr-2" />
+              <p className="text-muted-foreground">טוען נתונים...</p>
+            </div>
+            <Progress value={40} className="h-2" />
+            <div className="space-y-2">
+              <Skeleton className="h-12 w-full" />
+              <Skeleton className="h-12 w-full" />
+              <Skeleton className="h-12 w-full" />
+            </div>
           </div>
         ) : sortedUsers.length > 0 ? (
           sortedUsers.map(user => (
