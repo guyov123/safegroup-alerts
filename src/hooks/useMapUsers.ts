@@ -28,21 +28,48 @@ export function useMapUsers(currentPosition?: { latitude: number, longitude: num
   const [mapUsers, setMapUsers] = useState<MapUser[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [fetchAttempts, setFetchAttempts] = useState(0);
   
   // Fetch group members and set up realtime subscription
   useEffect(() => {
+    let isMounted = true; // Track if component is mounted
+    
     const fetchGroupMembers = async () => {
-      try {
+      // Set loading only on initial fetch
+      if (fetchAttempts === 0) {
         setIsLoading(true);
+      }
+      
+      try {
         setError(null);
+        console.log(`Fetch attempt ${fetchAttempts + 1}`);
         
         // Check if user is authenticated
-        const { data: { user } } = await supabase.auth.getUser();
+        const { data: { user }, error: userError } = await supabase.auth.getUser();
+        
+        if (userError) {
+          console.error("Error getting user:", userError);
+          if (isMounted) {
+            setIsLoading(false);
+            setError("שגיאה באימות המשתמש");
+            
+            // After 3 seconds, reset the error to allow retrying
+            setTimeout(() => {
+              if (isMounted) {
+                setError(null);
+                setFetchAttempts(prev => prev + 1);
+              }
+            }, 3000);
+          }
+          return;
+        }
         
         if (!user) {
           console.log("User not authenticated");
-          setIsLoading(false);
-          setError("משתמש לא מחובר");
+          if (isMounted) {
+            setIsLoading(false);
+            setMapUsers([]);
+          }
           return;
         }
         
@@ -56,17 +83,21 @@ export function useMapUsers(currentPosition?: { latitude: number, longitude: num
           
         if (groupsError) {
           console.error("Error fetching groups:", groupsError);
-          toast.error("שגיאה בטעינת הקבוצות");
-          setIsLoading(false);
-          setError("שגיאה בטעינת הקבוצות");
+          if (isMounted) {
+            setIsLoading(false);
+            setError("שגיאה בטעינת הקבוצות");
+            toast.error("שגיאה בטעינת הקבוצות");
+          }
           return;
         }
         
         console.log("User groups found:", groups?.length || 0);
         
         if (!groups || groups.length === 0) {
-          setMapUsers([]);
-          setIsLoading(false);
+          if (isMounted) {
+            setMapUsers([]);
+            setIsLoading(false);
+          }
           return;
         }
         
@@ -81,17 +112,21 @@ export function useMapUsers(currentPosition?: { latitude: number, longitude: num
           
         if (membersError) {
           console.error("Error fetching group members:", membersError);
-          toast.error("שגיאה בטעינת חברי הקבוצה");
-          setIsLoading(false);
-          setError("שגיאה בטעינת חברי הקבוצה");
+          if (isMounted) {
+            setIsLoading(false);
+            setError("שגיאה בטעינת חברי הקבוצה");
+            toast.error("שגיאה בטעינת חברי הקבוצה");
+          }
           return;
         }
         
         console.log("Group members found:", members?.length || 0);
         
         if (!members || members.length === 0) {
-          setMapUsers([]);
-          setIsLoading(false);
+          if (isMounted) {
+            setMapUsers([]);
+            setIsLoading(false);
+          }
           return;
         }
         
@@ -107,9 +142,11 @@ export function useMapUsers(currentPosition?: { latitude: number, longitude: num
           
         if (safetyError) {
           console.error("Error fetching safety statuses:", safetyError);
-          toast.error("שגיאה בטעינת נתוני בטיחות");
-          setIsLoading(false);
-          setError("שגיאה בטעינת נתוני בטיחות");
+          if (isMounted) {
+            setIsLoading(false);
+            setError("שגיאה בטעינת נתוני בטיחות");
+            toast.error("שגיאה בטעינת נתוני בטיחות");
+          }
           return;
         }
         
@@ -165,18 +202,33 @@ export function useMapUsers(currentPosition?: { latitude: number, longitude: num
           console.log(`Member ${member.name} - lat: ${member.latitude}, lng: ${member.longitude}, time: ${member.time}, distance: ${member.distance}`);
         });
         
-        setMapUsers(formattedMembers);
+        if (isMounted) {
+          setMapUsers(formattedMembers);
+          setIsLoading(false);
+        }
       } catch (error) {
-        console.error("Error:", error);
-        toast.error("שגיאה בטעינת הנתונים");
-        setError("שגיאה בטעינת הנתונים");
-      } finally {
-        setIsLoading(false);
+        console.error("Error in fetchGroupMembers:", error);
+        if (isMounted) {
+          setError("שגיאה בטעינת הנתונים");
+          toast.error("שגיאה בטעינת הנתונים");
+          setIsLoading(false);
+        }
       }
     };
     
     // Initial fetch
     fetchGroupMembers();
+    
+    // Add a timeout to ensure loading state doesn't get stuck
+    const loadingTimeout = setTimeout(() => {
+      if (isMounted && isLoading) {
+        console.log("Loading timeout reached, resetting loading state");
+        setIsLoading(false);
+        if (mapUsers.length === 0) {
+          setError("לא ניתן היה לטעון את הנתונים");
+        }
+      }
+    }, 10000); // 10 second timeout
     
     // Setup real-time listener for safety status updates
     const safetyChannel = supabase
@@ -189,8 +241,10 @@ export function useMapUsers(currentPosition?: { latitude: number, longitude: num
         },
         (payload) => {
           console.log("Safety status updated:", payload);
-          toast.success("עדכון סטטוס חדש התקבל");
-          fetchGroupMembers(); // Refetch all data when a new status is inserted
+          if (isMounted) {
+            toast.success("עדכון סטטוס חדש התקבל");
+            fetchGroupMembers(); // Refetch all data when a new status is inserted
+          }
         }
       )
       .subscribe((status) => {
@@ -198,10 +252,12 @@ export function useMapUsers(currentPosition?: { latitude: number, longitude: num
       });
       
     return () => {
+      isMounted = false;
       console.log("Cleaning up realtime subscription");
+      clearTimeout(loadingTimeout);
       supabase.removeChannel(safetyChannel);
     };
-  }, [currentPosition]);
+  }, [currentPosition, fetchAttempts]);
 
   return { mapUsers, isLoading, error };
 }

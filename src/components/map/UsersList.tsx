@@ -46,6 +46,9 @@ const UsersList = ({ users, isLoading, onSelectUser }: UsersListProps) => {
     // Fall back to sorting by name
     return a.name.localeCompare(b.name);
   });
+
+  // Flag to determine if loading state has been active for too long
+  const showEmptyStateAfterLoading = isLoading && users.length === 0;
   
   return (
     <div className="absolute top-4 right-4 z-10 w-80 bg-white rounded-md shadow-md">
@@ -70,7 +73,7 @@ const UsersList = ({ users, isLoading, onSelectUser }: UsersListProps) => {
               <Loader2 className="h-5 w-5 text-primary animate-spin mr-2" />
               <p className="text-muted-foreground">טוען נתונים...</p>
             </div>
-            <Progress value={40} className="h-2" />
+            <Progress value={60} className="h-2" />
             <div className="space-y-2">
               <Skeleton className="h-12 w-full" />
               <Skeleton className="h-12 w-full" />

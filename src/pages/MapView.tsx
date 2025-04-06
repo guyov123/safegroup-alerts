@@ -127,7 +127,7 @@ const MapView = () => {
           
           // Show popup on hover
           markerEl.addEventListener('mouseenter', () => {
-            popup.setLngLat([user.longitude, user.latitude]).addTo(mapInstance);
+            popup.setLngLat([user.longitude!, user.latitude!]).addTo(mapInstance);
           });
           
           markerEl.addEventListener('mouseleave', () => {
