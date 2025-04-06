@@ -14,5 +14,7 @@ export interface GeolocationPosition {
     latitude: number;
     longitude: number;
     accuracy?: number;
-  }
+  };
+  timestamp?: number;
+  toJSON?: () => any;
 }
