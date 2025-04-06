@@ -26,29 +26,33 @@ const MapComponent = ({ mapboxToken, currentPosition, onMapInit }: MapComponentP
       ? [currentPosition.coords.longitude, currentPosition.coords.latitude]
       : [34.855499, 31.046051]; // Default to Israel if location not available
       
-    const newMap = new mapboxgl.Map({
-      container: mapContainer.current,
-      style: 'mapbox://styles/mapbox/streets-v12',
-      center: initialPosition as [number, number],
-      zoom: currentPosition ? 15 : 8
-    });
-    
-    map.current = newMap;
-    
-    // Add navigation controls
-    newMap.addControl(
-      new mapboxgl.NavigationControl(),
-      'top-left'
-    );
-    
-    // Add scale
-    newMap.addControl(
-      new mapboxgl.ScaleControl(),
-      'bottom-left'
-    );
+    try {
+      const newMap = new mapboxgl.Map({
+        container: mapContainer.current,
+        style: 'mapbox://styles/mapbox/streets-v12',
+        center: initialPosition as [number, number],
+        zoom: currentPosition ? 15 : 8
+      });
+      
+      map.current = newMap;
+      
+      // Add navigation controls
+      newMap.addControl(
+        new mapboxgl.NavigationControl(),
+        'top-left'
+      );
+      
+      // Add scale
+      newMap.addControl(
+        new mapboxgl.ScaleControl(),
+        'bottom-left'
+      );
 
-    // Call the callback with the initialized map
-    onMapInit(newMap);
+      // Call the callback with the initialized map
+      onMapInit(newMap);
+    } catch (error) {
+      console.error('Error initializing map:', error);
+    }
     
     return () => {
       map.current?.remove();
