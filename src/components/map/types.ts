@@ -12,6 +12,7 @@ export interface MapUser {
   longitude?: number;
   distance?: number;
   lastReported?: string;
+  phoneNumber?: string; // Added phone number for SMS messaging
 }
 
 export interface GeolocationPosition {
@@ -27,4 +28,9 @@ export interface GeolocationPosition {
   };
   timestamp: number;
   toJSON: () => any;
+}
+
+export interface SendMessageResponse {
+  success: boolean;
+  message: string;
 }
