@@ -42,6 +42,14 @@ const UserCard = ({ user, onClose }: UserCardProps) => {
         </CardHeader>
         <CardContent>
           <div className="space-y-2 text-right">
+            {user.status === "safe" && (
+              <div className="flex items-center justify-end gap-2">
+                <Badge variant="outline" className="bg-green-100">
+                  בטוח/ה
+                </Badge>
+              </div>
+            )}
+            
             {user.location && (
               <div className="flex items-center justify-end gap-2">
                 <div className="text-sm">{user.location}</div>
@@ -56,15 +64,10 @@ const UserCard = ({ user, onClose }: UserCardProps) => {
               </div>
             )}
             
-            {user.status === "safe" && user.time && (
+            {user.time && (
               <div className="flex items-center justify-end gap-2">
-                <div className="text-sm flex items-center">
-                  <span>{user.time}</span>
-                </div>
-                <Badge variant="outline" className="flex items-center gap-1 bg-green-100">
-                  <Clock className="h-3 w-3" />
-                  דיווח אחרון
-                </Badge>
+                <div className="text-sm">{user.time}</div>
+                <Clock className="h-4 w-4 text-muted-foreground" />
               </div>
             )}
             

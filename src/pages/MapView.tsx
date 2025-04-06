@@ -53,34 +53,49 @@ const MapView = () => {
           markerEl.style.backgroundColor = user.status === 'safe' ? '#10B981' : '#F59E0B';
           markerEl.style.border = '2px solid white';
           markerEl.style.boxShadow = '0 0 0 2px rgba(0, 0, 0, 0.1)';
+          markerEl.style.cursor = 'pointer';
           
-          // Add tooltip with name
-          const tooltip = document.createElement('div');
-          tooltip.className = 'marker-tooltip';
-          tooltip.textContent = user.name;
-          tooltip.style.position = 'absolute';
-          tooltip.style.bottom = '100%';
-          tooltip.style.left = '50%';
-          tooltip.style.transform = 'translateX(-50%)';
-          tooltip.style.backgroundColor = 'white';
-          tooltip.style.padding = '4px 8px';
-          tooltip.style.borderRadius = '4px';
-          tooltip.style.fontSize = '12px';
-          tooltip.style.fontWeight = 'bold';
-          tooltip.style.boxShadow = '0 0 4px rgba(0, 0, 0, 0.2)';
-          tooltip.style.whiteSpace = 'nowrap';
-          tooltip.style.opacity = '0';
-          tooltip.style.transition = 'opacity 0.2s';
-          tooltip.style.pointerEvents = 'none';
+          // Add popup with user information
+          const popup = new mapboxgl.Popup({
+            closeButton: false,
+            closeOnClick: false,
+            offset: 25,
+            className: 'member-popup',
+            maxWidth: '300px'
+          });
           
-          markerEl.appendChild(tooltip);
+          // Format the popup content
+          const popupContent = document.createElement('div');
+          popupContent.className = 'p-2 text-right';
           
+          const userName = document.createElement('div');
+          userName.className = 'font-bold text-sm';
+          userName.textContent = user.name;
+          popupContent.appendChild(userName);
+          
+          if (user.time) {
+            const timeReported = document.createElement('div');
+            timeReported.className = 'text-xs';
+            timeReported.textContent = `דווח ${user.time}`;
+            popupContent.appendChild(timeReported);
+          }
+          
+          if (user.distance !== undefined) {
+            const distanceInfo = document.createElement('div');
+            distanceInfo.className = 'text-xs';
+            distanceInfo.textContent = `${user.distance} ק"מ ממך`;
+            popupContent.appendChild(distanceInfo);
+          }
+          
+          popup.setDOMContent(popupContent);
+          
+          // Show popup on hover
           markerEl.addEventListener('mouseenter', () => {
-            tooltip.style.opacity = '1';
+            popup.addTo(mapInstance);
           });
           
           markerEl.addEventListener('mouseleave', () => {
-            tooltip.style.opacity = '0';
+            popup.remove();
           });
           
           // Add click handler
@@ -94,6 +109,7 @@ const MapView = () => {
             anchor: 'center'
           })
           .setLngLat([user.longitude, user.latitude])
+          .setPopup(popup)
           .addTo(mapInstance);
           
           newMarkers[user.id] = marker;

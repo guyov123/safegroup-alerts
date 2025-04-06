@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Search, Users, Clock, Navigation } from "lucide-react";
+import { Search, Users, Clock, Navigation, MapPin } from "lucide-react";
 import { MapUser } from "./types";
 
 interface UsersListProps {
@@ -94,24 +94,28 @@ const UsersList = ({ users, isLoading, onSelectUser }: UsersListProps) => {
                 </div>
               </div>
               
-              {/* Extra info row */}
-              {(user.time || user.distance !== undefined) && (
-                <div className="flex items-center gap-2 justify-end mt-1 text-xs text-muted-foreground">
-                  {user.time && (
-                    <div className="flex items-center gap-1">
-                      <span>{user.time}</span>
-                      <Clock className="h-3 w-3" />
-                    </div>
-                  )}
-                  
-                  {user.distance !== undefined && (
-                    <div className="flex items-center gap-1">
-                      <span>{user.distance} ק"מ</span>
-                      <Navigation className="h-3 w-3" />
-                    </div>
-                  )}
-                </div>
-              )}
+              {/* Info row with time, location and distance */}
+              <div className="flex flex-wrap items-center gap-2 justify-end mt-1 text-xs text-muted-foreground">
+                {user.time && (
+                  <div className="flex items-center gap-1">
+                    <span>{user.time}</span>
+                    <Clock className="h-3 w-3" />
+                  </div>
+                )}
+                
+                {user.distance !== undefined && (
+                  <div className="flex items-center gap-1">
+                    <span>{user.distance} ק"מ</span>
+                    <Navigation className="h-3 w-3" />
+                  </div>
+                )}
+                
+                {user.latitude && user.longitude && (
+                  <div className="flex items-center gap-1">
+                    <MapPin className="h-3 w-3" />
+                  </div>
+                )}
+              </div>
             </div>
           ))
         ) : (
