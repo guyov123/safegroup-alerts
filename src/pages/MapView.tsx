@@ -11,6 +11,7 @@ import UserCard from "@/components/map/UserCard";
 import UsersList from "@/components/map/UsersList";
 import mapboxgl from 'mapbox-gl';
 import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
 
 const MapView = () => {
   const [selectedUser, setSelectedUser] = useState<MapUser | null>(null);
@@ -201,12 +202,6 @@ const MapView = () => {
       toast.error(`שגיאה בטעינת הנתונים: ${error}`);
     }
   }, [error]);
-
-  // Import Supabase for realtime connection test button
-  const { supabase } = React.useMemo(() => {
-    const { supabase } = require("@/integrations/supabase/client");
-    return { supabase };
-  }, []);
   
   // Function to manually test realtime by publishing an event
   const testRealtime = async () => {
