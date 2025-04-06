@@ -15,7 +15,7 @@ export function useMapboxToken(): string {
     } else {
       // במקרה אמיתי, כאן היינו עושים קריאה לסופאבייס או שרת בשביל לקבל את הטוקן
       // לצורך הדגמה, אנחנו משתמשים בערך ברירת מחדל
-      const defaultToken = 'pk.eyJ1IjoibG92YWJsZS1kZW1vIiwiYSI6ImNsdDFiczdyZDFuZ3cycXFudzB3cmQ0MHMifQ.YlWXIhJYj8cFGl6Jv2nG0Q';
+      const defaultToken = 'pk.eyJ1IjoibXJzaGFwcm9uIiwiYSI6ImNtOTVpdWY3bjE0aGUycHF6cGpraDhvdGMifQ.Zcl9RxqHJ9zVFDTS6SmcpA';
       localStorage.setItem('mapbox_token', defaultToken);
       setMapboxToken(defaultToken);
     }
