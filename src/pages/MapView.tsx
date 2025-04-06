@@ -11,7 +11,6 @@ import UserCard from "@/components/map/UserCard";
 import UsersList from "@/components/map/users-list/UsersList";
 import mapboxgl from 'mapbox-gl';
 import { toast } from "sonner";
-import { supabase } from "@/integrations/supabase/client";
 
 const MapView = () => {
   const [selectedUser, setSelectedUser] = useState<MapUser | null>(null);
@@ -64,6 +63,16 @@ const MapView = () => {
       console.log("MapUsers loaded:", mapUsers.length, "users");
       const usersWithLocation = mapUsers.filter(user => user.latitude && user.longitude).length;
       console.log(`Users with location data: ${usersWithLocation} of ${mapUsers.length}`);
+      
+      // Log each user's data for debugging
+      mapUsers.forEach(user => {
+        console.log(`User ${user.name} data:`, {
+          id: user.id,
+          hasLocation: Boolean(user.latitude && user.longitude),
+          status: user.status,
+          coords: user.latitude && user.longitude ? `${user.latitude}, ${user.longitude}` : 'No location'
+        });
+      });
     }
   }, [mapUsers]);
   
@@ -86,6 +95,7 @@ const MapView = () => {
     // Add or update markers for each user with location
     mapUsers.forEach(user => {
       if (user.latitude && user.longitude) {
+        console.log(`Creating/updating marker for ${user.name} at ${user.latitude}, ${user.longitude}`);
         // Check if the marker already exists before creating a new one
         if (newMarkers[user.id]) {
           // Update existing marker position
@@ -159,9 +169,11 @@ const MapView = () => {
           .addTo(mapInstance);
           
           newMarkers[user.id] = marker;
+          console.log(`Added marker for ${user.name}`);
         }
       } else if (newMarkers[user.id]) {
         // Remove marker if no location
+        console.log(`Removing marker for ${user.name} - no location data`);
         newMarkers[user.id].remove();
         delete newMarkers[user.id];
       }
@@ -170,6 +182,7 @@ const MapView = () => {
     // Remove markers for users that are no longer in the list
     Object.keys(membersMarkers).forEach(id => {
       if (!mapUsers.find(user => user.id === id) && membersMarkers[id]) {
+        console.log(`Removing marker for user ID ${id} - not found in user list`);
         membersMarkers[id].remove();
         delete newMarkers[id];
       }
@@ -181,6 +194,7 @@ const MapView = () => {
   // Function to center the map on a user
   const centerOnUser = (user: MapUser) => {
     if (mapInstance && user.latitude && user.longitude) {
+      console.log(`Centering on ${user.name} at ${user.latitude}, ${user.longitude}`);
       mapInstance.flyTo({
         center: [user.longitude, user.latitude],
         zoom: 15,
@@ -261,6 +275,17 @@ const MapView = () => {
               : "מנותק"}
         </span>
       </div>
+      
+      {mapUsers && mapUsers.length > 0 && !mapUsers.some(user => user.latitude && user.longitude) && (
+        <div className="absolute top-20 right-4 z-10 bg-amber-50 border border-amber-200 p-3 rounded-md shadow-md max-w-xs">
+          <p className="text-amber-700 text-sm text-right">
+            <strong>אין משתמשים עם מיקום זמין</strong>
+          </p>
+          <p className="text-amber-600 text-xs text-right mt-1">
+            המפה מוכנה להציג מיקומים, אבל אף משתמש אינו משתף את מיקומו כרגע
+          </p>
+        </div>
+      )}
     </div>
   );
 };
