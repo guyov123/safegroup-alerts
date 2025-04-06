@@ -3,7 +3,7 @@ import { useState, useEffect } from 'react';
 import { MapUser } from '@/components/map/types';
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { formatDistance, formatDistanceToNow } from 'date-fns';
+import { formatDistanceToNow } from 'date-fns';
 import { he } from 'date-fns/locale';
 
 // Function to calculate distance between two points in kilometers
@@ -149,7 +149,7 @@ export function useMapUsers(currentPosition?: { latitude: number, longitude: num
         
         console.log("Formatted members:", formattedMembers.length);
         formattedMembers.forEach(member => {
-          console.log(`Member ${member.name} - lat: ${member.latitude}, lng: ${member.longitude}`);
+          console.log(`Member ${member.name} - lat: ${member.latitude}, lng: ${member.longitude}, time: ${member.time}, distance: ${member.distance}`);
         });
         
         setMapUsers(formattedMembers);
