@@ -210,15 +210,81 @@ const Dashboard = () => {
         return;
       }
       
-      if (!memberData) {
-        toast.error("לא נמצא חבר קבוצה המקושר למשתמש זה");
-        setIsReportingStatus(false);
-        return;
+      let memberId = memberData?.id;
+      
+      // If user is not a member yet, create a member entry
+      if (!memberId) {
+        // Get first group owned by the user
+        const { data: ownedGroups, error: groupsError } = await supabase
+          .from('groups')
+          .select('id')
+          .eq('owner_id', user.id)
+          .limit(1)
+          .single();
+          
+        if (groupsError || !ownedGroups) {
+          // Create a default group for the user
+          const { data: newGroup, error: createGroupError } = await supabase
+            .from('groups')
+            .insert({
+              name: 'הקבוצה שלי',
+              owner_id: user.id
+            })
+            .select()
+            .single();
+            
+          if (createGroupError) {
+            console.error("Error creating group:", createGroupError);
+            toast.error("שגיאה ביצירת קבוצה למשתמש");
+            setIsReportingStatus(false);
+            return;
+          }
+          
+          // Create member in the new group
+          const { data: newMember, error: createMemberError } = await supabase
+            .from('group_members')
+            .insert({
+              group_id: newGroup.id,
+              email: user.email,
+              name: user.user_metadata?.full_name || user.email
+            })
+            .select()
+            .single();
+            
+          if (createMemberError) {
+            console.error("Error creating group member:", createMemberError);
+            toast.error("שגיאה ביצירת חבר קבוצה");
+            setIsReportingStatus(false);
+            return;
+          }
+          
+          memberId = newMember.id;
+        } else {
+          // Create member in existing group
+          const { data: newMember, error: createMemberError } = await supabase
+            .from('group_members')
+            .insert({
+              group_id: ownedGroups.id,
+              email: user.email,
+              name: user.user_metadata?.full_name || user.email
+            })
+            .select()
+            .single();
+            
+          if (createMemberError) {
+            console.error("Error creating group member:", createMemberError);
+            toast.error("שגיאה ביצירת חבר קבוצה");
+            setIsReportingStatus(false);
+            return;
+          }
+          
+          memberId = newMember.id;
+        }
       }
       
       // Construct safety report
       const safetyReport: any = {
-        member_id: memberData.id,
+        member_id: memberId,
         status: "safe"
       };
       
