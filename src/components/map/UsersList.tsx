@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -18,47 +17,59 @@ const UsersList = ({ users, isLoading, onSelectUser }: UsersListProps) => {
   const [searchQuery, setSearchQuery] = useState("");
   const [displayType, setDisplayType] = useState<"all" | "withLocation">("all");
   const [progressValue, setProgressValue] = useState(30);
+  const [hideProgress, setHideProgress] = useState(false);
   
-  console.log("UsersList rendered with", users.length, "users", isLoading ? "(loading)" : "");
-
-  // Increment progress during loading
   useEffect(() => {
     let interval: number | null = null;
     
-    if (isLoading && progressValue < 90) {
+    if (isLoading && progressValue < 90 && !hideProgress) {
       interval = window.setInterval(() => {
         setProgressValue(prev => Math.min(prev + 10, 90));
       }, 1000);
     } else if (!isLoading) {
       setProgressValue(100);
-      setTimeout(() => setProgressValue(30), 500);
+      setTimeout(() => {
+        setHideProgress(true);
+        setProgressValue(30);
+      }, 500);
+    }
+    
+    if (users.length > 0 && isLoading && !hideProgress) {
+      const forceHideTimeout = setTimeout(() => {
+        setHideProgress(true);
+      }, 5000);
+      
+      return () => {
+        clearTimeout(forceHideTimeout);
+        if (interval) clearInterval(interval);
+      };
     }
     
     return () => {
       if (interval) clearInterval(interval);
     };
-  }, [isLoading, progressValue]);
+  }, [isLoading, progressValue, users.length, hideProgress]);
 
-  // Filter users based on search query and display type
+  useEffect(() => {
+    if (isLoading && users.length === 0) {
+      setHideProgress(false);
+    }
+  }, [isLoading, users.length]);
+
   const filteredUsers = users.filter(user => {
-    // First, apply text search filter
     const matchesSearch = !searchQuery || 
       user.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
       user.group.toLowerCase().includes(searchQuery.toLowerCase()) ||
       (user.location && user.location.toLowerCase().includes(searchQuery.toLowerCase()));
     
-    // Then, apply location filter if necessary  
     return matchesSearch && (displayType === "all" || (displayType === "withLocation" && Boolean(user.latitude && user.longitude)));
   });
   
-  // Sort by status (safe first), then by reported time (most recent first)
   const sortedUsers = [...filteredUsers].sort((a, b) => {
-    // Sort by status first (safe before unknown)
     if (a.status !== b.status) {
       return a.status === "safe" ? -1 : 1;
     }
     
-    // Then sort by whether they have location data
     const aHasLocation = Boolean(a.latitude && a.longitude);
     const bHasLocation = Boolean(b.latitude && b.longitude);
     
@@ -66,16 +77,13 @@ const UsersList = ({ users, isLoading, onSelectUser }: UsersListProps) => {
       return aHasLocation ? -1 : 1;
     }
     
-    // Then sort by reported time (if both have timestamps)
     if (a.lastReported && b.lastReported) {
       return new Date(b.lastReported).getTime() - new Date(a.lastReported).getTime();
     }
     
-    // Put users with timestamps before those without
     if (a.lastReported && !b.lastReported) return -1;
     if (!a.lastReported && b.lastReported) return 1;
     
-    // Fall back to sorting by name
     return a.name.localeCompare(b.name);
   });
 
@@ -116,7 +124,6 @@ const UsersList = ({ users, isLoading, onSelectUser }: UsersListProps) => {
         </div>
       </div>
       
-      {/* Conditional rendering based on loading state and available users */}
       <div className="max-h-80 overflow-y-auto p-2">
         {isLoading && users.length === 0 ? (
           <div className="p-4 space-y-3">
@@ -141,7 +148,7 @@ const UsersList = ({ users, isLoading, onSelectUser }: UsersListProps) => {
                 </div>
               </div>
             )}
-            {isLoading && (
+            {isLoading && !hideProgress && (
               <div className="mb-2">
                 <Progress value={progressValue} className="h-1" />
               </div>
@@ -175,7 +182,6 @@ const UsersList = ({ users, isLoading, onSelectUser }: UsersListProps) => {
                   </div>
                 </div>
                 
-                {/* Info row with time, location and distance */}
                 <div className="flex flex-wrap items-center gap-2 justify-end mt-1 text-xs text-muted-foreground">
                   {user.time && (
                     <div className="flex items-center gap-1">

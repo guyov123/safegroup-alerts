@@ -37,6 +37,7 @@ export function useMapUsers(
   const previousPositionRef = useRef<{ latitude: number, longitude: number } | null>(null);
   const realtimeChannelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
   const notifiedRealtimeRef = useRef<boolean>(false);
+  const lastUpdateToast = useRef<string | null>(null);
   
   // Check if position has changed significantly
   const hasPositionChanged = (currentPos?: { latitude: number, longitude: number } | null): boolean => {
@@ -60,11 +61,11 @@ export function useMapUsers(
     
     // Update the reference to track component mount status
     isMounted.current = true;
-    notifiedRealtimeRef.current = false;
     
     // Only refetch if position has changed significantly or it's the first fetch
     if (!hasPositionChanged(currentPosition) && mapUsers.length > 0 && fetchAttempts > 0) {
       console.log("Skipping fetch because position hasn't changed significantly");
+      setIsLoading(false); // Ensure we're not stuck in loading state
       return;
     }
     
@@ -77,8 +78,8 @@ export function useMapUsers(
     }
     
     const fetchGroupMembers = async () => {
-      // Set loading only on initial fetch
-      if (fetchAttempts === 0) {
+      // Set loading only on initial fetch or when we have no data
+      if (fetchAttempts === 0 || mapUsers.length === 0) {
         setIsLoading(true);
       }
       
@@ -128,7 +129,7 @@ export function useMapUsers(
           if (isMounted.current) {
             setIsLoading(false);
             setError("שגיאה בטעינת הקבוצות");
-            toast.error("שגיאה בטעינת הקבוצות");
+            toast.error("שגיאה בטעינת הקבוצות", { duration: 3000 });
           }
           return;
         }
@@ -157,7 +158,7 @@ export function useMapUsers(
           if (isMounted.current) {
             setIsLoading(false);
             setError("שגיאה בטעינת חברי הקבוצה");
-            toast.error("שגיאה בטעינת חברי הקבוצה");
+            toast.error("שגיאה בטעינת חברי הקבוצה", { duration: 3000 });
           }
           return;
         }
@@ -187,7 +188,7 @@ export function useMapUsers(
           if (isMounted.current) {
             setIsLoading(false);
             setError("שגיאה בטעינת נתוני בטיחות");
-            toast.error("שגיאה בטעינת נתוני בטיחות");
+            toast.error("שגיאה בטעינת נתוני בטיחות", { duration: 3000 });
           }
           return;
         }
@@ -241,9 +242,6 @@ export function useMapUsers(
         });
         
         console.log("Formatted members:", formattedMembers.length);
-        formattedMembers.forEach(member => {
-          console.log(`Member ${member.name} - lat: ${member.latitude}, lng: ${member.longitude}, time: ${member.time}, distance: ${member.distance}`);
-        });
         
         if (isMounted.current) {
           setMapUsers(formattedMembers);
@@ -253,7 +251,7 @@ export function useMapUsers(
         console.error("Error in fetchGroupMembers:", error);
         if (isMounted.current) {
           setError("שגיאה בטעינת הנתונים");
-          toast.error("שגיאה בטעינת הנתונים");
+          toast.error("שגיאה בטעינת הנתונים", { duration: 3000 });
           setIsLoading(false);
         }
       }
@@ -297,9 +295,18 @@ export function useMapUsers(
           console.log("Safety status update received via realtime:", payload);
           const { new: updatedStatus } = payload;
           if (isMounted.current) {
-            toast.success("עדכון סטטוס חדש התקבל", {
-              description: `עדכון מהמשתמש ID: ${updatedStatus.member_id.substring(0, 8)}...`,
-            });
+            // Ensure we don't show too many notifications by debouncing
+            const memberId = updatedStatus.member_id.substring(0, 8);
+            const now = Date.now();
+            
+            // Only show update toast if we haven't shown one for this member in the last 5 seconds
+            if (!lastUpdateToast.current || now - parseInt(lastUpdateToast.current.split('-')[1] || '0') > 5000) {
+              toast.success("עדכון סטטוס חדש התקבל", {
+                description: `עדכון מהמשתמש ID: ${memberId}...`,
+                duration: 3000
+              });
+              lastUpdateToast.current = `${memberId}-${now}`;
+            }
             
             // Don't refetch everything, just update the specific user status
             setMapUsers(prevUsers => {
@@ -355,10 +362,6 @@ export function useMapUsers(
         // Notify about realtime status, but only once per connection cycle
         if (status === 'SUBSCRIBED') {
           console.log("✅ Successfully subscribed to realtime updates");
-          if (!notifiedRealtimeRef.current) {
-            notifiedRealtimeRef.current = true;
-            toast.success("מחובר לעדכונים בזמן אמת", { id: "realtime-connected" });
-          }
           
           // Callback to parent component for connection status
           if (onRealtimeStatusChange) {
@@ -366,14 +369,12 @@ export function useMapUsers(
           }
         } else if (status === 'CHANNEL_ERROR') {
           console.error("❌ Error subscribing to realtime updates");
-          toast.error("שגיאה בחיבור לעדכונים בזמן אמת", { id: "realtime-error" });
           
           if (onRealtimeStatusChange) {
             onRealtimeStatusChange(status);
           }
         } else if (status === 'TIMED_OUT') {
           console.error("⏱️ Realtime subscription timed out");
-          toast.error("פסק זמן בחיבור לעדכונים בזמן אמת", { id: "realtime-timeout" });
           
           if (onRealtimeStatusChange) {
             onRealtimeStatusChange(status);

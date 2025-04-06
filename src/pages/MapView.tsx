@@ -19,6 +19,7 @@ const MapView = () => {
   const [membersMarkers, setMembersMarkers] = useState<{[key: string]: mapboxgl.Marker}>({});
   const markerUpdateTimeRef = useRef<number>(0);
   const [realtimeIndicator, setRealtimeIndicator] = useState<"connected" | "disconnected" | "connecting">("connecting");
+  const realtimeStatusNotifiedRef = useRef<{[key: string]: boolean}>({});
   
   // Custom hooks
   const { currentPosition, locationError } = useLocation();
@@ -31,8 +32,26 @@ const MapView = () => {
     (status) => {
       if (status === 'SUBSCRIBED') {
         setRealtimeIndicator("connected");
+        
+        // Only show the toast once per session for this status
+        if (!realtimeStatusNotifiedRef.current['connected']) {
+          toast.success("מחובר לעדכונים בזמן אמת", { 
+            id: "realtime-connected",
+            duration: 3000 // Only show for 3 seconds
+          });
+          realtimeStatusNotifiedRef.current['connected'] = true;
+        }
       } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
         setRealtimeIndicator("disconnected");
+        
+        // Only show the toast once per session for this status
+        if (!realtimeStatusNotifiedRef.current['disconnected']) {
+          toast.error("נותק מעדכונים בזמן אמת", { 
+            id: "realtime-disconnected",
+            duration: 3000
+          });
+          realtimeStatusNotifiedRef.current['disconnected'] = true;
+        }
       }
     }
   );
@@ -67,8 +86,7 @@ const MapView = () => {
     // Add or update markers for each user with location
     mapUsers.forEach(user => {
       if (user.latitude && user.longitude) {
-        console.log(`Adding/updating marker for user ${user.name} at ${user.latitude}, ${user.longitude}, status: ${user.status}`);
-        
+        // Check if the marker already exists before creating a new one
         if (newMarkers[user.id]) {
           // Update existing marker position
           newMarkers[user.id].setLngLat([user.longitude, user.latitude]);
@@ -158,10 +176,6 @@ const MapView = () => {
     });
     
     setMembersMarkers(newMarkers);
-    
-    // Log the number of markers created
-    const markerCount = Object.keys(newMarkers).length;
-    console.log(`Created ${markerCount} markers on the map`);
   }, [mapInstance, mapUsers, isLoading]);
   
   // Function to center the map on a user
@@ -173,20 +187,31 @@ const MapView = () => {
         essential: true
       });
       
-      // Show toast confirmation
-      toast.success(`מתמקד במיקום של ${user.name}`);
+      // Show toast confirmation with limited duration
+      toast.success(`מתמקד במיקום של ${user.name}`, {
+        duration: 3000 // 3 seconds
+      });
     } else if (user.status === "safe" && (!user.latitude || !user.longitude)) {
       // Handle the case where a user is marked as safe but has no location data
-      toast.info(`${user.name} סימן/ה שהוא/היא בטוח/ה, אך אין נתוני מיקום`);
+      toast.info(`${user.name} סימן/ה שהוא/היא בטוח/ה, אך אין נתוני מיקום`, {
+        duration: 3000 // 3 seconds
+      });
     }
   };
   
   // If we have data loading errors, show them
   useEffect(() => {
     if (error) {
-      toast.error(`שגיאה בטעינת הנתונים: ${error}`);
+      toast.error(`שגיאה בטעינת הנתונים: ${error}`, {
+        duration: 5000 // 5 seconds
+      });
     }
   }, [error]);
+  
+  function handleMapInit(map: mapboxgl.Map) {
+    console.log("Map initialized");
+    setMapInstance(map);
+  }
   
   return (
     <div className="h-screen relative">
@@ -238,11 +263,6 @@ const MapView = () => {
       </div>
     </div>
   );
-
-  function handleMapInit(map: mapboxgl.Map) {
-    console.log("Map initialized");
-    setMapInstance(map);
-  }
 };
 
 export default MapView;
