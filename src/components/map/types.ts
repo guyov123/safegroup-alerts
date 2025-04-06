@@ -21,5 +21,5 @@ export interface GeolocationPosition {
     toJSON: () => any; // Changed from optional to required
   };
   timestamp: number;
-  toJSON?: () => any;
+  toJSON: () => any; // Changed from optional to required
 }
