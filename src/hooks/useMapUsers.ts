@@ -36,8 +36,8 @@ export function useMapUsers(
   const fetchTimeoutRef = useRef<number | null>(null);
   const previousPositionRef = useRef<{ latitude: number, longitude: number } | null>(null);
   const realtimeChannelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
-  const notifiedRealtimeRef = useRef<boolean>(false);
   const lastUpdateToast = useRef<string | null>(null);
+  const notifiedRealtimeRef = useRef<boolean>(false);
   
   // Check if position has changed significantly
   const hasPositionChanged = (currentPos?: { latitude: number, longitude: number } | null): boolean => {
@@ -177,7 +177,8 @@ export function useMapUsers(
         const memberIds = members.map(member => member.id);
         console.log("Fetching safety statuses for member IDs:", memberIds);
         
-        const { data: safetyStatuses, error: safetyError } = await supabase
+        // Important fix: Get ALL safety statuses without filtering by member_id first
+        const { data: allSafetyStatuses, error: safetyError } = await supabase
           .from('member_safety_status')
           .select('*')
           .in('member_id', memberIds)
@@ -193,11 +194,11 @@ export function useMapUsers(
           return;
         }
         
-        console.log("Safety statuses found:", safetyStatuses?.length || 0);
+        console.log("Safety statuses found:", allSafetyStatuses?.length || 0);
         
         // Get the latest status for each member
-        const latestStatusByMember = safetyStatuses ? 
-          safetyStatuses.reduce((acc, status) => {
+        const latestStatusByMember = allSafetyStatuses ? 
+          allSafetyStatuses.reduce((acc, status) => {
             if (!acc[status.member_id] || new Date(status.reported_at) > new Date(acc[status.member_id].reported_at)) {
               acc[status.member_id] = status;
             }
@@ -359,27 +360,8 @@ export function useMapUsers(
       .subscribe((status) => {
         console.log("Realtime subscription status:", status);
         
-        // Notify about realtime status, but only once per connection cycle
-        if (status === 'SUBSCRIBED') {
-          console.log("✅ Successfully subscribed to realtime updates");
-          
-          // Callback to parent component for connection status
-          if (onRealtimeStatusChange) {
-            onRealtimeStatusChange(status);
-          }
-        } else if (status === 'CHANNEL_ERROR') {
-          console.error("❌ Error subscribing to realtime updates");
-          
-          if (onRealtimeStatusChange) {
-            onRealtimeStatusChange(status);
-          }
-        } else if (status === 'TIMED_OUT') {
-          console.error("⏱️ Realtime subscription timed out");
-          
-          if (onRealtimeStatusChange) {
-            onRealtimeStatusChange(status);
-          }
-        } else if (onRealtimeStatusChange) {
+        // Provide status to parent component
+        if (onRealtimeStatusChange) {
           onRealtimeStatusChange(status);
         }
       });

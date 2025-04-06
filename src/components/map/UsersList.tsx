@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -19,6 +20,7 @@ const UsersList = ({ users, isLoading, onSelectUser }: UsersListProps) => {
   const [progressValue, setProgressValue] = useState(30);
   const [hideProgress, setHideProgress] = useState(false);
   
+  // Handle progress bar animation and hiding
   useEffect(() => {
     let interval: number | null = null;
     
@@ -30,10 +32,10 @@ const UsersList = ({ users, isLoading, onSelectUser }: UsersListProps) => {
       setProgressValue(100);
       setTimeout(() => {
         setHideProgress(true);
-        setProgressValue(30);
       }, 500);
     }
     
+    // Force hide progress after 5 seconds if still loading but we have data
     if (users.length > 0 && isLoading && !hideProgress) {
       const forceHideTimeout = setTimeout(() => {
         setHideProgress(true);
@@ -50,12 +52,15 @@ const UsersList = ({ users, isLoading, onSelectUser }: UsersListProps) => {
     };
   }, [isLoading, progressValue, users.length, hideProgress]);
 
+  // Reset progress bar when starting new load with no data
   useEffect(() => {
     if (isLoading && users.length === 0) {
       setHideProgress(false);
+      setProgressValue(30);
     }
   }, [isLoading, users.length]);
 
+  // Filter users based on search and display type
   const filteredUsers = users.filter(user => {
     const matchesSearch = !searchQuery || 
       user.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
@@ -65,6 +70,7 @@ const UsersList = ({ users, isLoading, onSelectUser }: UsersListProps) => {
     return matchesSearch && (displayType === "all" || (displayType === "withLocation" && Boolean(user.latitude && user.longitude)));
   });
   
+  // Sort users: safe first, with location first, then by last reported time
   const sortedUsers = [...filteredUsers].sort((a, b) => {
     if (a.status !== b.status) {
       return a.status === "safe" ? -1 : 1;
@@ -131,7 +137,7 @@ const UsersList = ({ users, isLoading, onSelectUser }: UsersListProps) => {
               <Loader2 className="h-5 w-5 text-primary animate-spin mr-2" />
               <p className="text-muted-foreground">טוען נתונים...</p>
             </div>
-            <Progress value={progressValue} className="h-2" />
+            {!hideProgress && <Progress value={progressValue} className="h-2" />}
             <div className="space-y-2">
               <Skeleton className="h-12 w-full" />
               <Skeleton className="h-12 w-full" />
