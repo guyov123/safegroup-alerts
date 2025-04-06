@@ -32,6 +32,7 @@ export function useMapUsers(currentPosition?: { latitude: number, longitude: num
   const isMounted = useRef(true);
   const fetchTimeoutRef = useRef<number | null>(null);
   const previousPositionRef = useRef<{ latitude: number, longitude: number } | null>(null);
+  const realtimeChannelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
   
   // Check if position has changed significantly
   const hasPositionChanged = (currentPos?: { latitude: number, longitude: number } | null): boolean => {
@@ -272,6 +273,13 @@ export function useMapUsers(currentPosition?: { latitude: number, longitude: num
     }, 10000); // 10 second timeout
     
     // Setup real-time listener for safety status updates
+    // Clean up any existing subscriptions first
+    if (realtimeChannelRef.current) {
+      console.log("Cleaning up existing realtime subscription before creating new one");
+      supabase.removeChannel(realtimeChannelRef.current);
+      realtimeChannelRef.current = null;
+    }
+    
     const safetyChannel = supabase
       .channel('member_safety_updates')
       .on('postgres_changes', 
@@ -281,14 +289,16 @@ export function useMapUsers(currentPosition?: { latitude: number, longitude: num
           table: 'member_safety_status' 
         },
         (payload) => {
-          console.log("Safety status updated:", payload);
+          console.log("Safety status update received via realtime:", payload);
+          const { new: updatedStatus } = payload;
           if (isMounted.current) {
-            toast.success("עדכון סטטוס חדש התקבל");
-            // Don't refetch everything, just update the specific user status
-            const updatedStatus = payload.new;
+            toast.success("עדכון סטטוס חדש התקבל", {
+              description: `עדכון מהמשתמש ID: ${updatedStatus.member_id.substring(0, 8)}...`,
+            });
             
+            // Don't refetch everything, just update the specific user status
             setMapUsers(prevUsers => {
-              return prevUsers.map(user => {
+              const updatedUsers = prevUsers.map(user => {
                 if (user.id === updatedStatus.member_id) {
                   // Calculate distance if both positions are available
                   let distance = user.distance;
@@ -304,6 +314,15 @@ export function useMapUsers(currentPosition?: { latitude: number, longitude: num
                   
                   const formattedTime = formatDistanceToNow(new Date(updatedStatus.reported_at), { addSuffix: true, locale: he });
                   
+                  console.log(`Updating user ${user.name} with new status:`, {
+                    status: updatedStatus.status,
+                    time: formattedTime,
+                    lastReported: updatedStatus.reported_at,
+                    latitude: updatedStatus.latitude,
+                    longitude: updatedStatus.longitude,
+                    distance
+                  });
+                  
                   return {
                     ...user,
                     status: updatedStatus.status as "safe" | "unknown",
@@ -318,13 +337,30 @@ export function useMapUsers(currentPosition?: { latitude: number, longitude: num
                 }
                 return user;
               });
+              
+              console.log("Updated users after realtime update:", updatedUsers.length);
+              return updatedUsers;
             });
           }
         }
       )
       .subscribe((status) => {
         console.log("Realtime subscription status:", status);
+        
+        if (status === 'SUBSCRIBED') {
+          console.log("✅ Successfully subscribed to realtime updates");
+          toast.success("מחובר לעדכונים בזמן אמת");
+        } else if (status === 'CHANNEL_ERROR') {
+          console.error("❌ Error subscribing to realtime updates");
+          toast.error("שגיאה בחיבור לעדכונים בזמן אמת");
+        } else if (status === 'TIMED_OUT') {
+          console.error("⏱️ Realtime subscription timed out");
+          toast.error("פסק זמן בחיבור לעדכונים בזמן אמת");
+        }
       });
+    
+    // Store the channel reference so we can clean it up later
+    realtimeChannelRef.current = safetyChannel;
       
     return () => {
       isMounted.current = false;
@@ -332,9 +368,14 @@ export function useMapUsers(currentPosition?: { latitude: number, longitude: num
       
       if (fetchTimeoutRef.current) {
         clearTimeout(fetchTimeoutRef.current);
+        fetchTimeoutRef.current = null;
       }
       
-      supabase.removeChannel(safetyChannel);
+      if (realtimeChannelRef.current) {
+        console.log("Removing realtime channel on unmount");
+        supabase.removeChannel(realtimeChannelRef.current);
+        realtimeChannelRef.current = null;
+      }
     };
   }, [currentPosition, fetchAttempts]);
 

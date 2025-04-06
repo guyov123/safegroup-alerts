@@ -39,6 +39,29 @@ const MapView = () => {
     }
   }, [mapUsers]);
   
+  // Test realtime connection by showing status on the UI
+  useEffect(() => {
+    // Check if Supabase realtime is connected by subscribing to a test channel
+    const testChannel = supabase.channel('connection_test');
+    const startTime = Date.now();
+    
+    testChannel
+      .subscribe((status) => {
+        const elapsed = Date.now() - startTime;
+        console.log(`Realtime test connection status: ${status} (after ${elapsed}ms)`);
+        
+        if (status === 'SUBSCRIBED') {
+          console.log(`✅ Realtime connection test successful in ${elapsed}ms`);
+        } else if (status === 'CHANNEL_ERROR') {
+          console.error("❌ Error in realtime test connection");
+        }
+      });
+      
+    return () => {
+      supabase.removeChannel(testChannel);
+    };
+  }, []);
+  
   // Add/update member markers on the map - with debouncing
   useEffect(() => {
     if (!mapInstance) return;
@@ -178,6 +201,45 @@ const MapView = () => {
       toast.error(`שגיאה בטעינת הנתונים: ${error}`);
     }
   }, [error]);
+
+  // Import Supabase for realtime connection test button
+  const { supabase } = React.useMemo(() => {
+    const { supabase } = require("@/integrations/supabase/client");
+    return { supabase };
+  }, []);
+  
+  // Function to manually test realtime by publishing an event
+  const testRealtime = async () => {
+    try {
+      toast.info("בדיקת תקשורת בזמן אמת...");
+      const userId = 'test-' + Date.now();
+      
+      const testChannel = supabase.channel('test_publish');
+      await testChannel.subscribe((status) => {
+        console.log("Test publication channel status:", status);
+        
+        if (status === 'SUBSCRIBED') {
+          // Channel is ready, send a broadcast message
+          testChannel.send({
+            type: 'broadcast',
+            event: 'test',
+            payload: { message: 'Hello from client', timestamp: new Date().toISOString() }
+          });
+          
+          console.log("Sent test broadcast message");
+          toast.success("נשלחה הודעת בדיקה");
+        }
+      });
+      
+      // Clean up after 5 seconds
+      setTimeout(() => {
+        supabase.removeChannel(testChannel);
+      }, 5000);
+    } catch (e) {
+      console.error("Error testing realtime:", e);
+      toast.error("שגיאה בבדיקת תקשורת בזמן אמת");
+    }
+  };
   
   return (
     <div className="h-screen relative">
@@ -207,6 +269,14 @@ const MapView = () => {
           centerOnUser(user);
         }}
       />
+      
+      {/* Realtime test button */}
+      <button
+        onClick={testRealtime}
+        className="absolute top-4 left-4 z-10 bg-white rounded-md shadow-md px-3 py-2 text-sm font-medium"
+      >
+        בדיקת Realtime
+      </button>
     </div>
   );
 
