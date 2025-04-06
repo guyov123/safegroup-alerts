@@ -16,6 +16,7 @@ const MapView = () => {
   const [selectedUser, setSelectedUser] = useState<MapUser | null>(null);
   const [mapInstance, setMapInstance] = useState<mapboxgl.Map | null>(null);
   const [membersMarkers, setMembersMarkers] = useState<{[key: string]: mapboxgl.Marker}>({});
+  const markerUpdateTimeRef = useRef<number>(0);
   
   // Custom hooks
   const { currentPosition, locationError } = useLocation();
@@ -36,30 +37,21 @@ const MapView = () => {
       const usersWithLocation = mapUsers.filter(user => user.latitude && user.longitude).length;
       console.log(`Users with location data: ${usersWithLocation} of ${mapUsers.length}`);
     }
-    
-    if (error) {
-      console.log("Error loading map users:", error);
-    }
-  }, [mapUsers, error]);
+  }, [mapUsers]);
   
-  // Add/update member markers on the map
+  // Add/update member markers on the map - with debouncing
   useEffect(() => {
-    if (!mapInstance) {
-      console.log("Map instance not loaded yet");
-      return;
-    }
-    
-    if (isLoading) {
-      console.log("Map users are still loading");
-      return;
-    }
-    
-    if (!mapUsers || mapUsers.length === 0) {
-      console.log("No map users to display");
-      return;
-    }
+    if (!mapInstance) return;
+    if (isLoading && !mapUsers.length) return;
     
     console.log("Updating map markers for", mapUsers.length, "users");
+    
+    // Avoid overly frequent marker updates (debounce)
+    const now = Date.now();
+    if (now - markerUpdateTimeRef.current < 1000 && Object.keys(membersMarkers).length > 0) {
+      return;
+    }
+    markerUpdateTimeRef.current = now;
     
     const newMarkers: {[key: string]: mapboxgl.Marker} = {...membersMarkers};
     
@@ -69,7 +61,7 @@ const MapView = () => {
         console.log(`Adding/updating marker for user ${user.name} at ${user.latitude}, ${user.longitude}, status: ${user.status}`);
         
         if (newMarkers[user.id]) {
-          // Update existing marker
+          // Update existing marker position
           newMarkers[user.id].setLngLat([user.longitude, user.latitude]);
         } else {
           // Create marker element
@@ -161,11 +153,6 @@ const MapView = () => {
     // Log the number of markers created
     const markerCount = Object.keys(newMarkers).length;
     console.log(`Created ${markerCount} markers on the map`);
-    
-    return () => {
-      // Clean up markers when component unmounts
-      Object.values(newMarkers).forEach(marker => marker.remove());
-    };
   }, [mapInstance, mapUsers, isLoading]);
   
   // Function to center the map on a user
@@ -176,6 +163,9 @@ const MapView = () => {
         zoom: 15,
         essential: true
       });
+      
+      // Show toast confirmation
+      toast.success(`מתמקד במיקום של ${user.name}`);
     } else if (user.status === "safe" && (!user.latitude || !user.longitude)) {
       // Handle the case where a user is marked as safe but has no location data
       toast.info(`${user.name} סימן/ה שהוא/היא בטוח/ה, אך אין נתוני מיקום`);
@@ -210,7 +200,7 @@ const MapView = () => {
       />
       
       <UsersList 
-        users={mapUsers}
+        users={mapUsers || []}
         isLoading={isLoading}
         onSelectUser={(user) => {
           setSelectedUser(user);

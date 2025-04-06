@@ -1,11 +1,12 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Search, Users, Clock, Navigation, MapPin, Loader2, AlertTriangle } from "lucide-react";
 import { MapUser } from "./types";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Progress } from "@/components/ui/progress";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 
 interface UsersListProps {
   users: MapUser[];
@@ -15,17 +16,40 @@ interface UsersListProps {
 
 const UsersList = ({ users, isLoading, onSelectUser }: UsersListProps) => {
   const [searchQuery, setSearchQuery] = useState("");
+  const [displayType, setDisplayType] = useState<"all" | "withLocation">("all");
+  const [progressValue, setProgressValue] = useState(30);
   
   console.log("UsersList rendered with", users.length, "users", isLoading ? "(loading)" : "");
 
-  // Filter users based on search query
-  const filteredUsers = searchQuery 
-    ? users.filter(user => 
-        user.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
-        user.group.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        (user.location && user.location.toLowerCase().includes(searchQuery.toLowerCase()))
-      )
-    : users;
+  // Increment progress during loading
+  useEffect(() => {
+    let interval: number | null = null;
+    
+    if (isLoading && progressValue < 90) {
+      interval = window.setInterval(() => {
+        setProgressValue(prev => Math.min(prev + 10, 90));
+      }, 1000);
+    } else if (!isLoading) {
+      setProgressValue(100);
+      setTimeout(() => setProgressValue(30), 500);
+    }
+    
+    return () => {
+      if (interval) clearInterval(interval);
+    };
+  }, [isLoading, progressValue]);
+
+  // Filter users based on search query and display type
+  const filteredUsers = users.filter(user => {
+    // First, apply text search filter
+    const matchesSearch = !searchQuery || 
+      user.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
+      user.group.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (user.location && user.location.toLowerCase().includes(searchQuery.toLowerCase()));
+    
+    // Then, apply location filter if necessary  
+    return matchesSearch && (displayType === "all" || (displayType === "withLocation" && Boolean(user.latitude && user.longitude)));
+  });
   
   // Sort by status (safe first), then by reported time (most recent first)
   const sortedUsers = [...filteredUsers].sort((a, b) => {
@@ -55,8 +79,6 @@ const UsersList = ({ users, isLoading, onSelectUser }: UsersListProps) => {
     return a.name.localeCompare(b.name);
   });
 
-  // Flag to determine if we've been waiting too long
-  const showEmptyStateAfterLoading = isLoading && users.length === 0;
   const hasAnyUsersWithLocation = users.some(user => user.latitude && user.longitude);
   
   return (
@@ -74,15 +96,35 @@ const UsersList = ({ users, isLoading, onSelectUser }: UsersListProps) => {
             onChange={(e) => setSearchQuery(e.target.value)}
           />
         </div>
+        
+        <div className="mt-2">
+          <RadioGroup
+            value={displayType}
+            onValueChange={(value) => setDisplayType(value as "all" | "withLocation")}
+            className="flex justify-end gap-4"
+            dir="rtl"
+          >
+            <div className="flex items-center space-x-2 space-x-reverse flex-row-reverse">
+              <RadioGroupItem value="all" id="all" />
+              <label htmlFor="all" className="text-sm">כל החברים</label>
+            </div>
+            <div className="flex items-center space-x-2 space-x-reverse flex-row-reverse">
+              <RadioGroupItem value="withLocation" id="withLocation" />
+              <label htmlFor="withLocation" className="text-sm">עם מיקום</label>
+            </div>
+          </RadioGroup>
+        </div>
       </div>
+      
+      {/* Conditional rendering based on loading state and available users */}
       <div className="max-h-80 overflow-y-auto p-2">
-        {isLoading ? (
+        {isLoading && users.length === 0 ? (
           <div className="p-4 space-y-3">
             <div className="flex items-center justify-center mb-2">
               <Loader2 className="h-5 w-5 text-primary animate-spin mr-2" />
               <p className="text-muted-foreground">טוען נתונים...</p>
             </div>
-            <Progress value={60} className="h-2" />
+            <Progress value={progressValue} className="h-2" />
             <div className="space-y-2">
               <Skeleton className="h-12 w-full" />
               <Skeleton className="h-12 w-full" />
@@ -97,6 +139,11 @@ const UsersList = ({ users, isLoading, onSelectUser }: UsersListProps) => {
                   <AlertTriangle className="h-4 w-4" />
                   <p className="text-xs">אין חברים עם נתוני מיקום זמינים</p>
                 </div>
+              </div>
+            )}
+            {isLoading && (
+              <div className="mb-2">
+                <Progress value={progressValue} className="h-1" />
               </div>
             )}
             {sortedUsers.map(user => (
