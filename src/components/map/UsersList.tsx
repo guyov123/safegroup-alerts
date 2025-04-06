@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Search, Users, Clock, Navigation, MapPin, Loader2 } from "lucide-react";
+import { Search, Users, Clock, Navigation, MapPin, Loader2, AlertTriangle } from "lucide-react";
 import { MapUser } from "./types";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Progress } from "@/components/ui/progress";
@@ -34,6 +34,14 @@ const UsersList = ({ users, isLoading, onSelectUser }: UsersListProps) => {
       return a.status === "safe" ? -1 : 1;
     }
     
+    // Then sort by whether they have location data
+    const aHasLocation = Boolean(a.latitude && a.longitude);
+    const bHasLocation = Boolean(b.latitude && b.longitude);
+    
+    if (aHasLocation !== bHasLocation) {
+      return aHasLocation ? -1 : 1;
+    }
+    
     // Then sort by reported time (if both have timestamps)
     if (a.lastReported && b.lastReported) {
       return new Date(b.lastReported).getTime() - new Date(a.lastReported).getTime();
@@ -47,8 +55,9 @@ const UsersList = ({ users, isLoading, onSelectUser }: UsersListProps) => {
     return a.name.localeCompare(b.name);
   });
 
-  // Flag to determine if loading state has been active for too long
+  // Flag to determine if we've been waiting too long
   const showEmptyStateAfterLoading = isLoading && users.length === 0;
+  const hasAnyUsersWithLocation = users.some(user => user.latitude && user.longitude);
   
   return (
     <div className="absolute top-4 right-4 z-10 w-80 bg-white rounded-md shadow-md">
@@ -81,60 +90,77 @@ const UsersList = ({ users, isLoading, onSelectUser }: UsersListProps) => {
             </div>
           </div>
         ) : sortedUsers.length > 0 ? (
-          sortedUsers.map(user => (
-            <div 
-              key={user.id} 
-              className="p-2 hover:bg-accent rounded-md cursor-pointer transition-colors mb-1"
-              onClick={() => onSelectUser(user)}
-            >
-              <div className="flex items-center justify-between">
-                <Badge 
-                  variant="outline" 
-                  className={user.status === "safe" ? "bg-green-100" : "bg-amber-100"}
-                >
-                  {user.status === "safe" ? "בטוח" : "לא ידוע"}
-                </Badge>
-                
-                <div className="flex items-center gap-2">
-                  <div className="text-right">
-                    <div className="font-medium text-sm">{user.name}</div>
-                    <div className="text-xs text-muted-foreground flex items-center justify-end gap-1">
-                      <span>{user.group}</span>
-                      <Users className="h-3 w-3" />
-                    </div>
-                  </div>
-                  <Avatar className="h-8 w-8">
-                    <AvatarImage src={user.image} alt={user.name} />
-                    <AvatarFallback>{user.name.charAt(0)}</AvatarFallback>
-                  </Avatar>
+          <>
+            {!hasAnyUsersWithLocation && (
+              <div className="mb-2 p-2 bg-amber-50 border border-amber-200 rounded-md">
+                <div className="flex items-center justify-center gap-2 text-amber-600">
+                  <AlertTriangle className="h-4 w-4" />
+                  <p className="text-xs">אין חברים עם נתוני מיקום זמינים</p>
                 </div>
               </div>
-              
-              {/* Info row with time, location and distance */}
-              <div className="flex flex-wrap items-center gap-2 justify-end mt-1 text-xs text-muted-foreground">
-                {user.time && (
-                  <div className="flex items-center gap-1">
-                    <span>{user.time}</span>
-                    <Clock className="h-3 w-3" />
+            )}
+            {sortedUsers.map(user => (
+              <div 
+                key={user.id} 
+                className="p-2 hover:bg-accent rounded-md cursor-pointer transition-colors mb-1"
+                onClick={() => onSelectUser(user)}
+              >
+                <div className="flex items-center justify-between">
+                  <Badge 
+                    variant="outline" 
+                    className={user.status === "safe" ? "bg-green-100" : "bg-amber-100"}
+                  >
+                    {user.status === "safe" ? "בטוח" : "לא ידוע"}
+                  </Badge>
+                  
+                  <div className="flex items-center gap-2">
+                    <div className="text-right">
+                      <div className="font-medium text-sm">{user.name}</div>
+                      <div className="text-xs text-muted-foreground flex items-center justify-end gap-1">
+                        <span>{user.group}</span>
+                        <Users className="h-3 w-3" />
+                      </div>
+                    </div>
+                    <Avatar className="h-8 w-8">
+                      <AvatarImage src={user.image} alt={user.name} />
+                      <AvatarFallback>{user.name.charAt(0)}</AvatarFallback>
+                    </Avatar>
                   </div>
-                )}
+                </div>
                 
-                {user.distance !== undefined && (
-                  <div className="flex items-center gap-1">
-                    <span>{user.distance} ק"מ</span>
-                    <Navigation className="h-3 w-3" />
-                  </div>
-                )}
-                
-                {user.latitude && user.longitude && (
-                  <div className="flex items-center gap-1">
-                    <span>{user.location}</span>
-                    <MapPin className="h-3 w-3" />
-                  </div>
-                )}
+                {/* Info row with time, location and distance */}
+                <div className="flex flex-wrap items-center gap-2 justify-end mt-1 text-xs text-muted-foreground">
+                  {user.time && (
+                    <div className="flex items-center gap-1">
+                      <span>{user.time}</span>
+                      <Clock className="h-3 w-3" />
+                    </div>
+                  )}
+                  
+                  {user.distance !== undefined && (
+                    <div className="flex items-center gap-1">
+                      <span>{user.distance} ק"מ</span>
+                      <Navigation className="h-3 w-3" />
+                    </div>
+                  )}
+                  
+                  {user.latitude && user.longitude && (
+                    <div className="flex items-center gap-1">
+                      <span>{user.location}</span>
+                      <MapPin className="h-3 w-3" />
+                    </div>
+                  )}
+                  
+                  {!user.latitude && !user.longitude && user.status === "safe" && (
+                    <div className="flex items-center gap-1 text-amber-500">
+                      <span>אין נתוני מיקום</span>
+                      <AlertTriangle className="h-3 w-3" />
+                    </div>
+                  )}
+                </div>
               </div>
-            </div>
-          ))
+            ))}
+          </>
         ) : (
           <div className="p-4 text-center">
             <p className="text-muted-foreground">אין חברי קבוצה זמינים</p>

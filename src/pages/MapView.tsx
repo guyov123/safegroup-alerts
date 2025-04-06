@@ -28,21 +28,13 @@ const MapView = () => {
   );
 
   const mapboxToken = useMapboxToken();
-
-  const handleMapInit = (map: mapboxgl.Map) => {
-    setMapInstance(map);
-    console.log("Map initialized");
-  };
   
   // Debug information
   useEffect(() => {
     if (mapUsers && mapUsers.length > 0) {
       console.log("MapUsers loaded:", mapUsers.length, "users");
-      mapUsers.forEach(user => {
-        console.log(`User ${user.name} - latitude: ${user.latitude}, longitude: ${user.longitude}, status: ${user.status}, time: ${user.time}, distance: ${user.distance}`);
-      });
-    } else {
-      console.log("No map users loaded or empty array");
+      const usersWithLocation = mapUsers.filter(user => user.latitude && user.longitude).length;
+      console.log(`Users with location data: ${usersWithLocation} of ${mapUsers.length}`);
     }
     
     if (error) {
@@ -166,6 +158,10 @@ const MapView = () => {
     
     setMembersMarkers(newMarkers);
     
+    // Log the number of markers created
+    const markerCount = Object.keys(newMarkers).length;
+    console.log(`Created ${markerCount} markers on the map`);
+    
     return () => {
       // Clean up markers when component unmounts
       Object.values(newMarkers).forEach(marker => marker.remove());
@@ -180,6 +176,9 @@ const MapView = () => {
         zoom: 15,
         essential: true
       });
+    } else if (user.status === "safe" && (!user.latitude || !user.longitude)) {
+      // Handle the case where a user is marked as safe but has no location data
+      toast.info(`${user.name} סימן/ה שהוא/היא בטוח/ה, אך אין נתוני מיקום`);
     }
   };
   
@@ -220,6 +219,11 @@ const MapView = () => {
       />
     </div>
   );
+
+  function handleMapInit(map: mapboxgl.Map) {
+    console.log("Map initialized");
+    setMapInstance(map);
+  }
 };
 
 export default MapView;

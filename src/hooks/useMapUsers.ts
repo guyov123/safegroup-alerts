@@ -1,5 +1,5 @@
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { MapUser } from '@/components/map/types';
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -29,10 +29,46 @@ export function useMapUsers(currentPosition?: { latitude: number, longitude: num
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [fetchAttempts, setFetchAttempts] = useState(0);
+  const isMounted = useRef(true);
+  const fetchTimeoutRef = useRef<number | null>(null);
+  const previousPositionRef = useRef<{ latitude: number, longitude: number } | null>(null);
+  
+  // Check if position has changed significantly
+  const hasPositionChanged = (currentPos?: { latitude: number, longitude: number } | null): boolean => {
+    if (!currentPos || !previousPositionRef.current) return true;
+    
+    // Calculate distance between current and previous position
+    const distance = calculateDistance(
+      previousPositionRef.current.latitude,
+      previousPositionRef.current.longitude,
+      currentPos.latitude,
+      currentPos.longitude
+    );
+    
+    // Return true if moved more than 10 meters
+    return distance > 0.01; // 10 meters in km
+  };
   
   // Fetch group members and set up realtime subscription
   useEffect(() => {
-    let isMounted = true; // Track if component is mounted
+    console.log("useMapUsers effect running, attempt:", fetchAttempts);
+    
+    // Update the reference to track component mount status
+    isMounted.current = true;
+    
+    // Only refetch if position has changed significantly or it's the first fetch
+    if (!hasPositionChanged(currentPosition) && mapUsers.length > 0 && fetchAttempts > 0) {
+      console.log("Skipping fetch because position hasn't changed significantly");
+      return;
+    }
+    
+    // Update previous position reference
+    if (currentPosition) {
+      previousPositionRef.current = { 
+        latitude: currentPosition.latitude, 
+        longitude: currentPosition.longitude 
+      };
+    }
     
     const fetchGroupMembers = async () => {
       // Set loading only on initial fetch
@@ -49,13 +85,13 @@ export function useMapUsers(currentPosition?: { latitude: number, longitude: num
         
         if (userError) {
           console.error("Error getting user:", userError);
-          if (isMounted) {
+          if (isMounted.current) {
             setIsLoading(false);
             setError("שגיאה באימות המשתמש");
             
             // After 3 seconds, reset the error to allow retrying
             setTimeout(() => {
-              if (isMounted) {
+              if (isMounted.current) {
                 setError(null);
                 setFetchAttempts(prev => prev + 1);
               }
@@ -66,7 +102,7 @@ export function useMapUsers(currentPosition?: { latitude: number, longitude: num
         
         if (!user) {
           console.log("User not authenticated");
-          if (isMounted) {
+          if (isMounted.current) {
             setIsLoading(false);
             setMapUsers([]);
           }
@@ -83,7 +119,7 @@ export function useMapUsers(currentPosition?: { latitude: number, longitude: num
           
         if (groupsError) {
           console.error("Error fetching groups:", groupsError);
-          if (isMounted) {
+          if (isMounted.current) {
             setIsLoading(false);
             setError("שגיאה בטעינת הקבוצות");
             toast.error("שגיאה בטעינת הקבוצות");
@@ -94,7 +130,7 @@ export function useMapUsers(currentPosition?: { latitude: number, longitude: num
         console.log("User groups found:", groups?.length || 0);
         
         if (!groups || groups.length === 0) {
-          if (isMounted) {
+          if (isMounted.current) {
             setMapUsers([]);
             setIsLoading(false);
           }
@@ -112,7 +148,7 @@ export function useMapUsers(currentPosition?: { latitude: number, longitude: num
           
         if (membersError) {
           console.error("Error fetching group members:", membersError);
-          if (isMounted) {
+          if (isMounted.current) {
             setIsLoading(false);
             setError("שגיאה בטעינת חברי הקבוצה");
             toast.error("שגיאה בטעינת חברי הקבוצה");
@@ -123,7 +159,7 @@ export function useMapUsers(currentPosition?: { latitude: number, longitude: num
         console.log("Group members found:", members?.length || 0);
         
         if (!members || members.length === 0) {
-          if (isMounted) {
+          if (isMounted.current) {
             setMapUsers([]);
             setIsLoading(false);
           }
@@ -142,7 +178,7 @@ export function useMapUsers(currentPosition?: { latitude: number, longitude: num
           
         if (safetyError) {
           console.error("Error fetching safety statuses:", safetyError);
-          if (isMounted) {
+          if (isMounted.current) {
             setIsLoading(false);
             setError("שגיאה בטעינת נתוני בטיחות");
             toast.error("שגיאה בטעינת נתוני בטיחות");
@@ -190,7 +226,8 @@ export function useMapUsers(currentPosition?: { latitude: number, longitude: num
             lastReported: latestStatus?.reported_at,
             latitude: latestStatus?.latitude,
             longitude: latestStatus?.longitude,
-            location: latestStatus?.latitude ? `${latestStatus.latitude.toFixed(5)}, ${latestStatus.longitude.toFixed(5)}` : "",
+            location: latestStatus?.latitude && latestStatus?.longitude ? 
+              `${latestStatus.latitude.toFixed(5)}, ${latestStatus.longitude.toFixed(5)}` : "",
             group: member.groups.name,
             image: "",
             distance: distance ? Number(distance.toFixed(2)) : undefined
@@ -202,13 +239,13 @@ export function useMapUsers(currentPosition?: { latitude: number, longitude: num
           console.log(`Member ${member.name} - lat: ${member.latitude}, lng: ${member.longitude}, time: ${member.time}, distance: ${member.distance}`);
         });
         
-        if (isMounted) {
+        if (isMounted.current) {
           setMapUsers(formattedMembers);
           setIsLoading(false);
         }
       } catch (error) {
         console.error("Error in fetchGroupMembers:", error);
-        if (isMounted) {
+        if (isMounted.current) {
           setError("שגיאה בטעינת הנתונים");
           toast.error("שגיאה בטעינת הנתונים");
           setIsLoading(false);
@@ -220,8 +257,12 @@ export function useMapUsers(currentPosition?: { latitude: number, longitude: num
     fetchGroupMembers();
     
     // Add a timeout to ensure loading state doesn't get stuck
-    const loadingTimeout = setTimeout(() => {
-      if (isMounted && isLoading) {
+    if (fetchTimeoutRef.current) {
+      clearTimeout(fetchTimeoutRef.current);
+    }
+    
+    fetchTimeoutRef.current = window.setTimeout(() => {
+      if (isMounted.current && isLoading) {
         console.log("Loading timeout reached, resetting loading state");
         setIsLoading(false);
         if (mapUsers.length === 0) {
@@ -241,9 +282,43 @@ export function useMapUsers(currentPosition?: { latitude: number, longitude: num
         },
         (payload) => {
           console.log("Safety status updated:", payload);
-          if (isMounted) {
+          if (isMounted.current) {
             toast.success("עדכון סטטוס חדש התקבל");
-            fetchGroupMembers(); // Refetch all data when a new status is inserted
+            // Don't refetch everything, just update the specific user status
+            const updatedStatus = payload.new;
+            
+            setMapUsers(prevUsers => {
+              return prevUsers.map(user => {
+                if (user.id === updatedStatus.member_id) {
+                  // Calculate distance if both positions are available
+                  let distance = user.distance;
+                  if (updatedStatus.latitude && updatedStatus.longitude && currentPosition?.latitude && currentPosition?.longitude) {
+                    distance = calculateDistance(
+                      currentPosition.latitude,
+                      currentPosition.longitude,
+                      updatedStatus.latitude,
+                      updatedStatus.longitude
+                    );
+                    distance = Number(distance.toFixed(2));
+                  }
+                  
+                  const formattedTime = formatDistanceToNow(new Date(updatedStatus.reported_at), { addSuffix: true, locale: he });
+                  
+                  return {
+                    ...user,
+                    status: updatedStatus.status as "safe" | "unknown",
+                    time: formattedTime,
+                    lastReported: updatedStatus.reported_at,
+                    latitude: updatedStatus.latitude,
+                    longitude: updatedStatus.longitude,
+                    location: updatedStatus.latitude && updatedStatus.longitude ?
+                      `${updatedStatus.latitude.toFixed(5)}, ${updatedStatus.longitude.toFixed(5)}` : "",
+                    distance
+                  };
+                }
+                return user;
+              });
+            });
           }
         }
       )
@@ -252,9 +327,13 @@ export function useMapUsers(currentPosition?: { latitude: number, longitude: num
       });
       
     return () => {
-      isMounted = false;
+      isMounted.current = false;
       console.log("Cleaning up realtime subscription");
-      clearTimeout(loadingTimeout);
+      
+      if (fetchTimeoutRef.current) {
+        clearTimeout(fetchTimeoutRef.current);
+      }
+      
       supabase.removeChannel(safetyChannel);
     };
   }, [currentPosition, fetchAttempts]);
