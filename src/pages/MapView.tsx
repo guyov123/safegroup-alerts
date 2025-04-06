@@ -11,6 +11,9 @@ import UserCard from "@/components/map/UserCard";
 import UsersList from "@/components/map/users-list/UsersList";
 import mapboxgl from 'mapbox-gl';
 import { toast } from "sonner";
+import { AlertCircle } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { useNavigate } from "react-router-dom";
 
 const MapView = () => {
   const [selectedUser, setSelectedUser] = useState<MapUser | null>(null);
@@ -19,6 +22,7 @@ const MapView = () => {
   const markerUpdateTimeRef = useRef<number>(0);
   const [realtimeIndicator, setRealtimeIndicator] = useState<"connected" | "disconnected" | "connecting">("connecting");
   const realtimeStatusNotifiedRef = useRef<{[key: string]: boolean}>({});
+  const navigate = useNavigate();
   
   // Custom hooks
   const { currentPosition, locationError } = useLocation();
@@ -82,6 +86,7 @@ const MapView = () => {
     if (isLoading && !mapUsers.length) return;
     
     console.log("Updating map markers for", mapUsers.length, "users");
+    console.log("Users with location:", mapUsers.filter(user => user.latitude && user.longitude).length);
     
     // Avoid overly frequent marker updates (debounce)
     const now = Date.now();
@@ -227,6 +232,10 @@ const MapView = () => {
     setMapInstance(map);
   }
   
+  // Check if there are any groups/members
+  const hasGroups = mapUsers && mapUsers.length > 0;
+  const hasUsersWithLocation = mapUsers && mapUsers.some(user => user.latitude && user.longitude);
+  
   return (
     <div className="h-screen relative">
       <MapComponent 
@@ -276,14 +285,55 @@ const MapView = () => {
         </span>
       </div>
       
-      {mapUsers && mapUsers.length > 0 && !mapUsers.some(user => user.latitude && user.longitude) && (
-        <div className="absolute top-20 right-4 z-10 bg-amber-50 border border-amber-200 p-3 rounded-md shadow-md max-w-xs">
-          <p className="text-amber-700 text-sm text-right">
-            <strong>אין משתמשים עם מיקום זמין</strong>
-          </p>
-          <p className="text-amber-600 text-xs text-right mt-1">
-            המפה מוכנה להציג מיקומים, אבל אף משתמש אינו משתף את מיקומו כרגע
-          </p>
+      {/* No users with location warning */}
+      {hasGroups && !hasUsersWithLocation && (
+        <div className="absolute top-20 right-4 z-10 bg-amber-50 border border-amber-200 p-4 rounded-md shadow-md max-w-sm">
+          <div className="flex items-start gap-2">
+            <AlertCircle className="h-5 w-5 text-amber-600 flex-shrink-0 mt-0.5" />
+            <div>
+              <p className="text-amber-700 text-sm text-right font-semibold">
+                אין משתמשים עם מיקום זמין
+              </p>
+              <p className="text-amber-600 text-xs text-right mt-1">
+                המפה מוכנה להציג מיקומים, אבל נראה שאף חבר קבוצה עדיין לא דיווח על סטטוס עם מיקום
+              </p>
+              <p className="text-amber-700 text-xs text-right mt-2 font-medium">
+                חשוב: ודא שהזמנת את החברים עם <span className="font-bold">אותה כתובת אימייל</span> שאיתה הם נרשמו למערכת
+              </p>
+              <Button 
+                variant="outline" 
+                size="sm" 
+                className="mt-2 w-full bg-white"
+                onClick={() => navigate('/groups')}
+              >
+                עבור לניהול הקבוצות
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+      
+      {!hasGroups && !isLoading && (
+        <div className="absolute top-20 right-4 z-10 bg-amber-50 border border-amber-200 p-4 rounded-md shadow-md max-w-sm">
+          <div className="flex items-start gap-2">
+            <AlertCircle className="h-5 w-5 text-amber-600 flex-shrink-0 mt-0.5" />
+            <div>
+              <p className="text-amber-700 text-sm text-right font-semibold">
+                אין לך עדיין קבוצות
+              </p>
+              <p className="text-amber-600 text-xs text-right mt-1">
+                כדי לראות חברים על המפה, עליך קודם להקים קבוצות ולהזמין אליהן חברים
+              </p>
+              <Button 
+                variant="outline" 
+                size="sm" 
+                className="mt-3 w-full bg-white"
+                onClick={() => navigate('/groups')}
+              >
+                צור קבוצה חדשה
+              </Button>
+            </div>
+          </div>
         </div>
       )}
     </div>
