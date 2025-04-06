@@ -8,7 +8,7 @@ import MapComponent from "@/components/map/MapComponent";
 import MapControls from "@/components/map/MapControls";
 import LocationErrorMessage from "@/components/map/LocationErrorMessage";
 import UserCard from "@/components/map/UserCard";
-import UsersList from "@/components/map/UsersList";
+import UsersList from "@/components/map/users-list/UsersList";
 import mapboxgl from 'mapbox-gl';
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
