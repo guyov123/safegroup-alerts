@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { MapUser } from "@/components/map/types";
 import mapboxgl from 'mapbox-gl';
@@ -6,7 +5,7 @@ import MapComponent from "@/components/map/MapComponent";
 import MapControls from "@/components/map/MapControls";
 import LocationErrorMessage from "@/components/map/LocationErrorMessage";
 import UserCard from "@/components/map/UserCard";
-import UsersList from "@/components/map/users-list/UsersList";
+import UsersList from "./users-list/UsersList";
 import { useMapboxToken } from "@/hooks/useMapboxToken";
 import { useLocation } from "@/hooks/useLocation";
 import { useMapUsers } from "@/hooks/useMapUsers";
