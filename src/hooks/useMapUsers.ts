@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useRef } from 'react';
 import { MapUser } from '@/components/map/types';
 import { supabase } from "@/integrations/supabase/client";
@@ -18,14 +17,12 @@ export function useMapUsers(
   const [error, setError] = useState<string | null>(null);
   const [fetchAttempts, setFetchAttempts] = useState(0);
   
-  // Refs for tracking component state and cleanup
   const isMounted = useRef(true);
   const fetchTimeoutRef = useRef<number | null>(null);
   const previousPositionRef = useRef<{ latitude: number, longitude: number } | null>(null);
   const realtimeChannelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
   const lastUpdateToast = useRef<string | null>(null);
 
-  // Set up realtime updates
   useRealtimeUpdates(
     { isMounted, fetchTimeoutRef, realtimeChannelRef, lastUpdateToast },
     setMapUsers,
@@ -33,21 +30,17 @@ export function useMapUsers(
     onRealtimeStatusChange
   );
   
-  // Fetch group members and set up realtime subscription
   useEffect(() => {
     console.log("useMapUsers effect running, attempt:", fetchAttempts);
     
-    // Update the reference to track component mount status
     isMounted.current = true;
     
-    // Only refetch if position has changed significantly or it's the first fetch
     if (!hasPositionChanged(currentPosition, previousPositionRef.current) && mapUsers.length > 0 && fetchAttempts > 0) {
       console.log("Skipping fetch because position hasn't changed significantly");
-      setIsLoading(false); // Ensure we're not stuck in loading state
+      setIsLoading(false);
       return;
     }
     
-    // Update previous position reference
     if (currentPosition) {
       previousPositionRef.current = { 
         latitude: currentPosition.latitude, 
@@ -56,7 +49,6 @@ export function useMapUsers(
     }
     
     const fetchGroupMembers = async () => {
-      // Set loading only on initial fetch or when we have no data
       if (fetchAttempts === 0 || mapUsers.length === 0) {
         setIsLoading(true);
       }
@@ -65,7 +57,6 @@ export function useMapUsers(
         setError(null);
         console.log(`Fetch attempt ${fetchAttempts + 1}`);
         
-        // Check if user is authenticated
         const { data: { user }, error: userError } = await supabase.auth.getUser();
         
         if (userError) {
@@ -74,7 +65,6 @@ export function useMapUsers(
             setIsLoading(false);
             setError("שגיאה באימות המשתמש");
             
-            // After 3 seconds, reset the error to allow retrying
             setTimeout(() => {
               if (isMounted.current) {
                 setError(null);
@@ -96,7 +86,6 @@ export function useMapUsers(
         
         console.log("Fetching groups for user ID:", user.id);
         
-        // Fetch groups that belong to the current user
         const { data: groups, error: groupsError } = await supabase
           .from('groups')
           .select('id, name')
@@ -122,7 +111,6 @@ export function useMapUsers(
           return;
         }
         
-        // Fetch all members from the user's groups
         const groupIds = groups.map(group => group.id);
         console.log("Fetching members for group IDs:", groupIds);
         
@@ -151,7 +139,6 @@ export function useMapUsers(
           return;
         }
         
-        // Enhanced logging for debugging member data
         console.log("Group members details:", (members as GroupMember[]).map(m => ({ 
           id: m.id, 
           email: m.email, 
@@ -159,7 +146,6 @@ export function useMapUsers(
           authId: m.auth_id 
         })));
         
-        // Fetch the latest safety status for each member
         const memberIds = members.map(member => member.id);
         console.log("Fetching safety statuses for member IDs:", memberIds);
         
@@ -181,15 +167,12 @@ export function useMapUsers(
         console.log("Safety statuses found:", allSafetyStatuses?.length || 0);
         console.log("All safety statuses by member:", allSafetyStatuses);
         
-        // Get the latest status for each member by sorting by reported_at and taking first by member_id
         const latestStatusByMember = allSafetyStatuses ? 
           allSafetyStatuses.reduce((acc, status) => {
-            // Debug log for specific email
             const relatedMember = members.find(m => m.id === status.member_id);
             if (relatedMember) {
               console.log(`Found status for ${relatedMember.email}:`, status);
                 
-              // Special debug for Sharon
               if (relatedMember.email.toLowerCase() === 'mrshapron@gmail.com') {
                 console.log("Found status record for Sharon:", status);
               }
@@ -203,11 +186,9 @@ export function useMapUsers(
           
         console.log("Latest statuses by member:", Object.keys(latestStatusByMember).length);
         
-        // Transform the data to match the MapUser interface
         const formattedMembers = (members as GroupMember[]).map(member => {
           const latestStatus = latestStatusByMember[member.id];
           
-          // Debug information for mrshapron@gmail.com
           if (member.email.toLowerCase() === 'mrshapron@gmail.com') {
             console.log("Formatting member Sharon:", member);
             console.log("Latest status for Sharon:", latestStatus || "No status found");
@@ -215,7 +196,6 @@ export function useMapUsers(
           
           let distance: number | undefined = undefined;
           
-          // Calculate distance if both positions are available
           if (latestStatus?.latitude && latestStatus?.longitude && currentPosition?.latitude && currentPosition?.longitude) {
             distance = calculateDistance(
               currentPosition.latitude,
@@ -265,10 +245,8 @@ export function useMapUsers(
       }
     };
     
-    // Initial fetch
     fetchGroupMembers();
     
-    // Add a timeout to ensure loading state doesn't get stuck
     if (fetchTimeoutRef.current) {
       clearTimeout(fetchTimeoutRef.current);
     }
@@ -281,7 +259,7 @@ export function useMapUsers(
           setError("לא ניתן היה לטעון את הנתונים");
         }
       }
-    }, 10000); // 10 second timeout
+    }, 10000);
     
     return () => {
       isMounted.current = false;
